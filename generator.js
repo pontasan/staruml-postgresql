@@ -288,6 +288,24 @@ class DDLGenerator {
     			}
     		});
 
+        // parse the tags in the table
+        let constraintTags = [];
+        let indexInstructions = [];
+        let sequenceInstructions = [];
+        const parseTag = tag => {
+            let array = tag.name.split("#", 2);
+            return {
+                tag,
+                instruction: array[0],
+                targetName: array[1]
+            }
+        };
+        elem.tags.forEach((item) => {
+            if (item.name.startsWith('constraint')) constraintTags.push(item);
+            else if (item.name.startsWith('index#')) indexInstructions.push(parseTag(item));
+            else if (item.name.startsWith('sequence#')) sequenceInstructions.push(parseTag(item));
+        });
+
         // Table
         codeWriter.writeLine("CREATE TABLE " + table + " (");
         codeWriter.indent();
@@ -324,6 +342,11 @@ class DDLGenerator {
           if (primaryKeys.length > 0) {
               lines.push("PRIMARY KEY (" + primaryKeys.join(", ") + ")");
           }
+
+          // Constraints
+          constraintTags.forEach(item => {
+              lines.push(item.value);
+          });
 
           // Write lines
           for (var i = 0, len = lines.length; i < len; i++) {
@@ -375,6 +398,18 @@ class DDLGenerator {
       		}
 
 		      self.writeUserIndexes(codeWriter, table, elem, options);
+
+            // generate indexes
+            indexInstructions.forEach(item => {
+                codeWriter.writeLine(item.tag.value + ";");
+                dropWriter.writeLine("DROP INDEX IF EXISTS " + item.targetName + ";");
+            });
+
+            // generate sequences
+            sequenceInstructions.forEach(item => {
+                codeWriter.writeLine(item.tag.value + ";");
+                dropWriter.writeLine("DROP SEQUENCE IF EXISTS " + item.targetName + ";");
+            });
 
       		var documentation = elem.documentation;
       		if (!!documentation) {

@@ -101,6 +101,9 @@ It is possible to assist with the code generation through custom tags with speci
 | `prefix` | `ERDDiagram` | Gives the prefix of all the table names of the diagram |
 | `schema` | `ERDDataModel` | Indicates the schema where the tables will be created |
 | `table` | `Entity` | Override the table name otherwise given by the normalized `Entity` name |
+| `constraint` | `Entity` | (example) tag name: constraint, value: CONSTRAINT UNIQUE (column1, column2) |
+| `index#Index Name` | `Entity` | (example) tag name: index#IndexName, value: CREATE INDEX IndexName ON TableName (column1, column2) |
+| `sequence#Sequence Name` | `Entity` | (example) tag name: sequence#SequenceName, value: CREATE SEQUENCE SequenceName |
 | `column` | `Column` | Override the column name, otherwise given by the `Column` name |
 | `default` | `Column` | Gives the default column value. The string value is taken as is so user needs to be aware of specific database syntax |
 | `enum` | `Column` | Gives the column comma separated enumeration elements |
