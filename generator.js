@@ -291,7 +291,7 @@ class DDLGenerator {
         // Table
         codeWriter.writeLine("CREATE TABLE " + table + " (");
         codeWriter.indent();
-		    dropWriter.writeLine("DROP TABLE " + table + " CASCADE;");
+		    dropWriter.writeLine("DROP TABLE IF EXISTS " + table + " CASCADE;");
     		// drop enums
     		for (var i = 0, len = drop_enums.length; i < len; i++) {
                 dropWriter.writeLine(drop_enums[i]);
