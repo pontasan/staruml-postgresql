@@ -585,7 +585,12 @@ class DDLGenerator {
   					fs.writeFileSync(file, codeWriter.getData());
   					file = path + "/" + dataModelName + "_" +	diagName + "_drop.sql";
   					fs.writeFileSync(file, dropWriter.getData());
-  				}
+
+                    // merge
+                    let ddlFile = path + "/ddl.sql";
+                    fs.writeFileSync(ddlFile, dropWriter.getData());
+                    fs.writeFileSync(ddlFile, codeWriter.getData());
+                }
   			} else if (diagram instanceof type.ERDEntity) {
   				// generate table
   				app.toast.info("Generate table DDL for " + diagram.name);
