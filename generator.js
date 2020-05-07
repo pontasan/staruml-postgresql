@@ -220,7 +220,7 @@ class DDLGenerator {
   				+ ", please edit the table tag for " + elem.name);
   			return '';
   		}
-  		return dbName.toLowerCase();
+  		return dbName;
   	}
 
 	  columnName (elem, options) {
@@ -237,7 +237,7 @@ class DDLGenerator {
   				+ ", please edit the column tag for " + elem.name);
   			return '';
   		}
-  		return dbName.toLowerCase();
+  		return dbName;
 	  }
 
 	  columnDefault (elem, options) {
