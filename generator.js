@@ -585,11 +585,6 @@ class DDLGenerator {
   					fs.writeFileSync(file, codeWriter.getData());
   					file = path + "/" + dataModelName + "_" +	diagName + "_drop.sql";
   					fs.writeFileSync(file, dropWriter.getData());
-
-                    // merge
-                    let ddlFile = path + "/ddl.sql";
-                    fs.writeFileSync(ddlFile, dropWriter.getData());
-                    fs.writeFileSync(ddlFile, codeWriter.getData());
                 }
   			} else if (diagram instanceof type.ERDEntity) {
   				// generate table
@@ -608,7 +603,11 @@ class DDLGenerator {
   			fs.writeFileSync(file, tableCodeWriter.getData());
   			file = path + "/" + dataModelName + "_table_drop.sql";
   			fs.writeFileSync(file, tableDropWriter.getData());
-  		}
+          
+            // merge
+            let ddlFile = path + "/" + dataModelName + "_ddl.sql";
+            fs.writeFileSync(ddlFile, tableDropWriter.getData() + "\n\n" + tableCodeWriter.getData());
+        }
 
   		return true;
   	}
