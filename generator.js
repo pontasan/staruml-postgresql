@@ -331,7 +331,7 @@ class DDLGenerator {
           }
 
           codeWriter.outdent();
-          codeWriter.writeLine(");");
+          codeWriter.writeLine(") WITHOUT OIDS;");
           codeWriter.writeLine();
 
       		// uniques (combined?)
