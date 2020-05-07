@@ -400,16 +400,24 @@ class DDLGenerator {
 		      self.writeUserIndexes(codeWriter, table, elem, options);
 
             // generate indexes
-            indexInstructions.forEach(item => {
-                codeWriter.writeLine(item.tag.value + ";");
-                dropWriter.writeLine("DROP INDEX IF EXISTS " + item.targetName + ";");
-            });
+            if (indexInstructions.length > 0) {
+                indexInstructions.forEach(item => {
+                    codeWriter.writeLine(item.tag.value + ";");
+                    dropWriter.writeLine("DROP INDEX IF EXISTS " + item.targetName + ";");
+                });
+                codeWriter.writeLine();
+                dropWriter.writeLine();
+            }
 
             // generate sequences
-            sequenceInstructions.forEach(item => {
-                codeWriter.writeLine(item.tag.value + ";");
-                dropWriter.writeLine("DROP SEQUENCE IF EXISTS " + item.targetName + ";");
-            });
+            if (sequenceInstructions.length > 0) {
+                sequenceInstructions.forEach(item => {
+                    codeWriter.writeLine(item.tag.value + ";");
+                    dropWriter.writeLine("DROP SEQUENCE IF EXISTS " + item.targetName + ";");
+                });
+                codeWriter.writeLine();
+                dropWriter.writeLine();
+            }
 
       		var documentation = elem.documentation;
       		if (!!documentation) {
