@@ -54,11 +54,13 @@ function _handleGenerate(base, path, options) {
         base = returnValue
         // If path is not assigned, popup Save Dialog to save a file
         if (!path) {
-          var files = app.dialogs.showOpenDialog('Pick the folder where the Postgresql DDL will be generated', null, null, {properties: ['openDirectory']})
-          if (files && files.length > 0) {
-            path = files[0]
-            ddlGenerator.generate(base, path, options)
-          }
+          (async () => {
+            var files = await app.dialogs.showOpenDialog('Pick the folder where the Postgresql DDL will be generated', null, null, {properties: ['openDirectory']})
+            if (files && files.length > 0) {
+              path = files[0]
+              ddlGenerator.generate(base, path, options)
+            }
+          })();
         } else {
           ddlGenerator.generate(base, path, options)
         }
@@ -67,11 +69,13 @@ function _handleGenerate(base, path, options) {
   } else {
     // If path is not assigned, popup Save Dialog to save a file
     if (!path) {
-      var files = app.dialogs.showOpenDialog('Pick the folder where the Postgresql DDL will be generated', null, null, {properties: ['openDirectory']})
-      if (files && files.length > 0) {
-        path = files[0]
-        ddlGenerator.generate(base, path, options)
-      }
+      (async () => {
+        var files = await app.dialogs.showOpenDialog('Pick the folder where the Postgresql DDL will be generated', null, null, {properties: ['openDirectory']})
+        if (files && files.length > 0) {
+          path = files[0]
+          ddlGenerator.generate(base, path, options)
+        }
+      })();
     } else {
       ddlGenerator.generate(base, path, options)
     }
