@@ -23,7 +23,7 @@
 
 const ddlGenerator = require('./generator')
 
-function getGenOptions () {
+function getGenOptions() {
   return {
     owner: app.preferences.get('psqlddl.gen.owner'),
     tablespace: app.preferences.get('psqlddl.gen.tablespace'),
@@ -49,18 +49,26 @@ function _handleGenerate(base, path, options) {
   options = options || getGenOptions()
   // If base is not assigned, popup ElementPicker
   if (!base) {
-    app.elementPickerDialog.showDialog('Select a project to generate DDL for', null, type.Project).then(function ({buttonId, returnValue}) {
+    app.elementPickerDialog.showDialog('Select a project to generate DDL for', null, type.Project).then(function ({ buttonId, returnValue }) {
       if (buttonId === 'ok') {
         base = returnValue
         // If path is not assigned, popup Save Dialog to save a file
         if (!path) {
-          (async () => {
-            var files = await app.dialogs.showOpenDialog('Pick the folder where the Postgresql DDL will be generated', null, null, {properties: ['openDirectory']})
+          if (app.dialogs.showOpenDialog.constructor.name === 'AsyncFunction') {
+            (async () => {
+              var files = await app.dialogs.showOpenDialog('Pick the folder where the Postgresql DDL will be generated', null, null, { properties: ['openDirectory'] })
+              if (files && files.length > 0) {
+                path = files[0]
+                ddlGenerator.generate(base, path, options)
+              }
+            })();
+          } else {
+            var files = app.dialogs.showOpenDialog('Pick the folder where the Postgresql DDL will be generated', null, null, { properties: ['openDirectory'] })
             if (files && files.length > 0) {
               path = files[0]
               ddlGenerator.generate(base, path, options)
             }
-          })();
+          }
         } else {
           ddlGenerator.generate(base, path, options)
         }
@@ -69,13 +77,21 @@ function _handleGenerate(base, path, options) {
   } else {
     // If path is not assigned, popup Save Dialog to save a file
     if (!path) {
-      (async () => {
-        var files = await app.dialogs.showOpenDialog('Pick the folder where the Postgresql DDL will be generated', null, null, {properties: ['openDirectory']})
+      if (app.dialogs.showOpenDialog.constructor.name === 'AsyncFunction') {
+        (async () => {
+          var files = await app.dialogs.showOpenDialog('Pick the folder where the Postgresql DDL will be generated', null, null, { properties: ['openDirectory'] })
+          if (files && files.length > 0) {
+            path = files[0]
+            ddlGenerator.generate(base, path, options)
+          }
+        })();
+      } else {
+        var files = app.dialogs.showOpenDialog('Pick the folder where the Postgresql DDL will be generated', null, null, { properties: ['openDirectory'] })
         if (files && files.length > 0) {
           path = files[0]
           ddlGenerator.generate(base, path, options)
         }
-      })();
+      }
     } else {
       ddlGenerator.generate(base, path, options)
     }
@@ -85,11 +101,11 @@ function _handleGenerate(base, path, options) {
 /**
 * Popup PreferenceDialog with DDL Preference Schema
 */
-function _handleConfigure () {
+function _handleConfigure() {
   app.commands.execute('application:preferences', 'psqlddl')
 }
 
-function init () {
+function init() {
   app.commands.register('psqlddl:generate', _handleGenerate)
   app.commands.register('psqlddl:configure', _handleConfigure)
 }
