@@ -526,6 +526,10 @@ class DDLGenerator {
   				var schemaName = self.schemaName(e, options).toLowerCase();
   				var dataModelName = codegen.replaceAll(e.name, ' ', '_').toLowerCase();
   				self.generateTables(e, path, options, schemaName, dataModelName);
+				self.generateEntity(e, path, options, schemaName, dataModelName);
+				self.generateVO(e, path, options, schemaName, dataModelName);
+				self.generateConverter(e, path, options, schemaName, dataModelName);
+				self.generateDao(e, path, options, schemaName, dataModelName);
   				if (schemaName !== 'public' && schemas.indexOf(schemaName) == -1) {
   					schemas.push(schemaName);
   					codeWriter.writeLine("-- Schema for: " + e.name);
@@ -554,6 +558,787 @@ class DDLGenerator {
 
   		return true;
   	}
+
+	convertType(column, voFlag) {
+		let typeName = '???';
+		const columnName = column.name.toLowerCase();
+
+		switch (column.type.toUpperCase()) {
+			case 'BIGINT':
+				typeName = voFlag && !(column.primaryKey || column.foreignKey) && 
+					columnName !== 'version' && columnName !== 'createuser' && columnName !== 'updateuser' ? 'string' : 'number';
+				break;
+			case 'DECIMAL':
+				typeName = voFlag ? 'string': 'number';
+				break;
+			case 'INTEGER':
+				typeName = voFlag ? 'string': 'number';
+				break;
+			case 'INT':
+				typeName = voFlag ? 'string': 'number';
+				break;
+			case 'INT2':
+				typeName = voFlag ? 'string': 'number';
+				break;
+			case 'INT4':
+				typeName = voFlag ? 'string': 'number';
+				break;
+			case 'DOUBLE':
+				typeName = voFlag ? 'string': 'number';
+				break;
+			case 'FLOAT4':
+				typeName = voFlag ? 'string': 'number';
+				break;
+			case 'FLOAT8':
+				typeName = voFlag ? 'string': 'number';
+				break;
+			case 'NUMERIC':
+				typeName = voFlag ? 'string': 'number';
+				break;
+			case 'REAL':
+				typeName = voFlag ? 'string': 'number';
+				break;
+			case 'SMALLINT':
+				typeName = voFlag ? 'string': 'number';
+				break;
+			case 'SMALLSERIAL':
+				typeName = voFlag ? 'string': 'number';
+				break;
+			case 'SERIAL':
+				typeName = voFlag ? 'string': 'number';
+				break;
+			case 'BIGSERIAL':
+				typeName = voFlag ? 'string': 'number';
+				break;
+			case 'BOOLEAN':
+				typeName = 'boolean';
+				break;
+			case 'BOOL':
+				typeName = 'boolean';
+				break;
+			case 'TEXT':
+				typeName = 'string';
+				break;
+			case 'VARCHAR':
+				typeName = 'string';
+				break;
+			case 'CHAR':
+				typeName = 'string';
+				break;
+			case 'CHARACTER':
+				typeName = 'string';
+				break;
+			case 'DATE':
+				typeName = voFlag ? 'string': 'Date';
+				break;
+			case 'TIMESTAMP':
+				typeName = voFlag ? 'string' : 'Date';
+				break;
+		}
+		return typeName;
+	}
+
+	initialValueByType(column, voFlag) {
+		let emptyValue = '???';
+		const columnName = column.name.toLowerCase();
+
+		switch (column.type.toUpperCase()) {
+			case 'BIGINT':
+				emptyValue = voFlag && !(column.primaryKey || column.foreignKey) && 
+					columnName !== 'version' && columnName !== 'createuser' && columnName !== 'updateuser' ? "''" : '0';
+				break;
+			case 'DECIMAL':
+				emptyValue = voFlag ? "''" : '0';
+				break;
+			case 'INTEGER':
+				emptyValue = voFlag ? "''" : '0';
+				break;
+			case 'INT':
+				emptyValue = voFlag ? "''" : '0';
+				break;
+			case 'INT2':
+				emptyValue = voFlag ? "''" : '0';
+				break;
+			case 'INT4':
+				emptyValue = voFlag ? "''" : '0';
+				break;
+			case 'DOUBLE':
+				emptyValue = voFlag ? "''" : '0';
+				break;
+			case 'FLOAT4':
+				emptyValue = voFlag ? "''" : '0';
+				break;
+			case 'FLOAT8':
+				emptyValue = voFlag ? "''" : '0';
+				break;
+			case 'NUMERIC':
+				emptyValue = voFlag ? "''" : '0';
+				break;
+			case 'REAL':
+				emptyValue = voFlag ? "''" : '0';
+				break;
+			case 'SMALLINT':
+				emptyValue = voFlag ? "''" : '0';
+				break;
+			case 'SMALLSERIAL':
+				emptyValue = voFlag ? "''" : '0';
+				break;
+			case 'SERIAL':
+				emptyValue = voFlag ? "''" : '0';
+				break;
+			case 'BIGSERIAL':
+				emptyValue = voFlag ? "''" : '0';
+				break;
+			case 'BOOLEAN':
+				emptyValue = 'false';
+				break;
+			case 'BOOL':
+				emptyValue = 'false';
+				break;
+			case 'TEXT':
+				emptyValue = "''";
+				break;
+			case 'VARCHAR':
+				emptyValue = "''";
+				break;
+			case 'CHAR':
+				emptyValue = "''";
+				break;
+			case 'CHARACTER':
+				emptyValue = "''";
+				break;
+			case 'DATE':
+				emptyValue = voFlag ? "''" : '';
+				break;
+			case 'TIMESTAMP':
+				emptyValue = voFlag ? "''" : '';
+				break;
+		}
+		return emptyValue;
+	}
+
+	getConvertCode(column, toVOFlag) {
+		const result = {
+			left: '',
+			right: ''
+		};
+
+		const columnName = column.name.toLowerCase();
+
+		switch (column.type.toUpperCase()) {
+			case 'BIGINT':
+				if (column.primaryKey || column.foreignKey || 
+					columnName === 'version' || columnName === 'createuser' || columnName === 'updateuser'
+				) {
+					// NOP
+				} else if (toVOFlag) {
+					result.left = 'NumberUtils.formatNumber(';
+					result.right = ')';
+				} else {
+					result.left = 'NumberUtils.parseNumber(';
+					result.right = ')';
+				}
+				break;
+			case 'DECIMAL':
+				if (toVOFlag) {
+					result.left = 'NumberUtils.formatNumber(';
+					result.right = ')';
+				} else {
+					result.left = 'NumberUtils.parseNumber(';
+					result.right = ')';
+				}
+				break;
+			case 'INTEGER':
+				if (toVOFlag) {
+					result.left = 'NumberUtils.formatNumber(';
+					result.right = ')';
+				} else {
+					result.left = 'NumberUtils.parseNumber(';
+					result.right = ')';
+				}
+				break;
+			case 'INT':
+				if (toVOFlag) {
+					result.left = 'NumberUtils.formatNumber(';
+					result.right = ')';
+				} else {
+					result.left = 'NumberUtils.parseNumber(';
+					result.right = ')';
+				}
+				break;
+			case 'INT2':
+				if (toVOFlag) {
+					result.left = 'NumberUtils.formatNumber(';
+					result.right = ')';
+				} else {
+					result.left = 'NumberUtils.parseNumber(';
+					result.right = ')';
+				}
+				break;
+			case 'INT4':
+				if (toVOFlag) {
+					result.left = 'NumberUtils.formatNumber(';
+					result.right = ')';
+				} else {
+					result.left = 'NumberUtils.parseNumber(';
+					result.right = ')';
+				}
+				break;
+			case 'DOUBLE':
+				if (toVOFlag) {
+					result.left = 'NumberUtils.formatNumber(';
+					result.right = ')';
+				} else {
+					result.left = 'NumberUtils.parseNumber(';
+					result.right = ')';
+				}
+				break;
+			case 'FLOAT4':
+				if (toVOFlag) {
+					result.left = 'NumberUtils.formatNumber(';
+					result.right = ')';
+				} else {
+					result.left = 'NumberUtils.parseNumber(';
+					result.right = ')';
+				}
+				break;
+			case 'FLOAT8':
+				if (toVOFlag) {
+					result.left = 'NumberUtils.formatNumber(';
+					result.right = ')';
+				} else {
+					result.left = 'NumberUtils.parseNumber(';
+					result.right = ')';
+				}
+				break;
+			case 'NUMERIC':
+				if (toVOFlag) {
+					result.left = 'NumberUtils.formatNumber(';
+					result.right = ')';
+				} else {
+					result.left = 'NumberUtils.parseNumber(';
+					result.right = ')';
+				}
+				break;
+			case 'REAL':
+				if (toVOFlag) {
+					result.left = 'NumberUtils.formatNumber(';
+					result.right = ')';
+				} else {
+					result.left = 'NumberUtils.parseNumber(';
+					result.right = ')';
+				}
+				break;
+			case 'SMALLINT':
+				if (toVOFlag) {
+					result.left = 'NumberUtils.formatNumber(';
+					result.right = ')';
+				} else {
+					result.left = 'NumberUtils.parseNumber(';
+					result.right = ')';
+				}
+				break;
+			case 'SMALLSERIAL':
+				if (toVOFlag) {
+					result.left = 'NumberUtils.formatNumber(';
+					result.right = ')';
+				} else {
+					result.left = 'NumberUtils.parseNumber(';
+					result.right = ')';
+				}
+				break;
+			case 'SERIAL':
+				if (toVOFlag) {
+					result.left = 'NumberUtils.formatNumber(';
+					result.right = ')';
+				} else {
+					result.left = 'NumberUtils.parseNumber(';
+					result.right = ')';
+				}
+				break;
+			case 'BIGSERIAL':
+				if (toVOFlag) {
+					result.left = 'NumberUtils.formatNumber(';
+					result.right = ')';
+				} else {
+					result.left = 'NumberUtils.parseNumber(';
+					result.right = ')';
+				}
+				break;
+			case 'DATE':
+				if (toVOFlag) {
+					result.left = 'DateUtils.formatDate(';
+					result.right = ')';
+				} else {
+					result.left = 'DateUtils.parseDate(';
+					result.right = ')';
+				}
+				break;
+			case 'TIMESTAMP':
+				if (toVOFlag) {
+					result.left = 'DateUtils.formatTime(';
+					result.right = ')';
+				} else {
+					result.left = 'DateUtils.parseTime(';
+					result.right = ')';
+				}
+				break;
+		}
+		return result;
+	}
+
+	generateEntity(elem, path, options, schema, dataModelName) {
+		var self = this;
+		for (const diagram of elem.ownedElements) {
+			if (!(diagram instanceof type.ERDEntity)) {
+				continue;
+			}
+
+			// var prefix = codegen.stringTag("prefix", diagram);
+
+			var entityWriter = new codegen.CodeWriter(self.getIndentString(options));
+
+			entityWriter.writeLine(`export namespace ${diagram.name} {`);
+			entityWriter.writeLine(``);
+
+			entityWriter.writeLine(`    export type Type = {`);
+
+			let hasPrimaryKey = false;
+			for (let i = 0; i < diagram.columns.length; i++) {
+				const column = diagram.columns[i];
+				if (column.primaryKey) {
+					hasPrimaryKey = true;
+				}
+			}
+
+			for (let i = 0; i < diagram.columns.length; i++) {
+				const column = diagram.columns[i];
+				let isOptionalField = column.primaryKey || (!hasPrimaryKey && column.unique) || column.foreignKey || column.nullable
+				let typeName = self.convertType(column, false);
+
+				switch (column.type.toUpperCase()) {
+					case 'DATE':
+						isOptionalField = true;
+						break;
+					case 'TIMESTAMP':
+						isOptionalField = true;
+						break;
+				}
+
+				entityWriter.writeLine(`        ${column.name}${isOptionalField ? '?' : ''}: ${typeName}${i !== diagram.columns.length - 1 ? ',' : ''}`);
+			}
+			entityWriter.writeLine(`    }`);
+			entityWriter.writeLine(``);
+
+			entityWriter.writeLine(`    export function create(): ${diagram.name}.Type {`);
+			entityWriter.writeLine(`        return {`);
+			for (let i = 0; i < diagram.columns.length; i++) {
+				const column = diagram.columns[i];
+				let isOptionalField = column.primaryKey || (!hasPrimaryKey && column.unique) || column.foreignKey || column.nullable
+				let emptyValue = self.initialValueByType(column, false);
+
+				switch (column.type.toUpperCase()) {
+					case 'DATE':
+						isOptionalField = true;
+						break;
+					case 'TIMESTAMP':
+						isOptionalField = true;
+						break;
+				}
+
+				if (isOptionalField) {
+					continue;
+				}
+
+				entityWriter.writeLine(`            ${column.name}: ${emptyValue}${i !== diagram.columns.length - 1 ? ',' : ''}`);
+			}
+			entityWriter.writeLine(`        }`);
+			entityWriter.writeLine(`    }`);
+			entityWriter.writeLine(``);
+
+			entityWriter.writeLine(`}`);
+
+			if (!fs.existsSync(`${path}/entity/`)) {
+				fs.mkdirSync(`${path}/entity/`);
+			}
+
+			var file = `${path}/entity/${diagram.name}.ts`;
+			fs.writeFileSync(file, entityWriter.getData());
+		}
+	}
+
+	generateVO(elem, path, options, schema, dataModelName) {
+		var self = this;
+		for (const diagram of elem.ownedElements) {
+			if (!(diagram instanceof type.ERDEntity)) {
+				continue;
+			}
+
+			// var prefix = codegen.stringTag("prefix", diagram);
+
+			var entityWriter = new codegen.CodeWriter(self.getIndentString(options));
+
+			entityWriter.writeLine(`export namespace ${diagram.name}VO {`);
+			entityWriter.writeLine(``);
+
+			entityWriter.writeLine(`    export type Type = {`);
+
+			let hasPrimaryKey = false;
+			for (let i = 0; i < diagram.columns.length; i++) {
+				const column = diagram.columns[i];
+				if (column.primaryKey) {
+					hasPrimaryKey = true;
+				}
+			}
+
+			for (let i = 0; i < diagram.columns.length; i++) {
+				const column = diagram.columns[i];
+				let isOptionalField = column.primaryKey || (!hasPrimaryKey && column.unique) || column.foreignKey || column.nullable
+				let typeName = self.convertType(column, true);
+
+				entityWriter.writeLine(`        ${column.name}${isOptionalField ? '?' : ''}: ${typeName}${i !== diagram.columns.length - 1 ? ',' : ''}`);
+			}
+			entityWriter.writeLine(`    }`);
+			entityWriter.writeLine(``);
+
+			entityWriter.writeLine(`    export function create(): ${diagram.name}VO.Type {`);
+			entityWriter.writeLine(`        return {`);
+			for (let i = 0; i < diagram.columns.length; i++) {
+				const column = diagram.columns[i];
+				let isOptionalField = column.primaryKey || (!hasPrimaryKey && column.unique) || column.foreignKey || column.nullable
+				let emptyValue = self.initialValueByType(column, true);
+
+				if (isOptionalField) {
+					continue;
+				}
+
+				entityWriter.writeLine(`            ${column.name}: ${emptyValue}${i !== diagram.columns.length - 1 ? ',' : ''}`);
+			}
+			entityWriter.writeLine(`        }`);
+			entityWriter.writeLine(`    }`);
+			entityWriter.writeLine(``);
+
+			entityWriter.writeLine(`}`);
+
+			if (!fs.existsSync(`${path}/vo/`)) {
+				fs.mkdirSync(`${path}/vo/`);
+			}
+
+			var file = `${path}/vo/${diagram.name}.ts`;
+			fs.writeFileSync(file, entityWriter.getData());
+		}
+	}
+
+	generateConverter(elem, path, options, schema, dataModelName) {
+		var self = this;
+		for (const diagram of elem.ownedElements) {
+			if (!(diagram instanceof type.ERDEntity)) {
+				continue;
+			}
+
+			let hasPrimaryKey = false;
+			for (let i = 0; i < diagram.columns.length; i++) {
+				const column = diagram.columns[i];
+				if (column.primaryKey) {
+					hasPrimaryKey = true;
+				}
+			}
+
+			var writer = new codegen.CodeWriter(self.getIndentString(options));
+
+			writer.writeLine(`import { ${diagram.name}VO } from '../vo/${diagram.name}'`);
+			writer.writeLine(`import { ${diagram.name} } from '../entity/${diagram.name}'`);
+			writer.writeLine(`import { DateUtils } from '@/lib/common/utils/date_utils'`);
+			writer.writeLine(`import { NumberUtils } from '@/lib/common/utils/number_utils'`);
+			writer.writeLine(``);
+
+			writer.writeLine(`export namespace ${diagram.name}Converter {`);
+			writer.writeLine(``);
+
+			writer.writeLine(`    export function toVO(src: ${diagram.name}.Type): ${diagram.name}VO.Type {`);
+			writer.writeLine(`        return {`);
+
+			for (let i = 0; i < diagram.columns.length; i++) {
+				const column = diagram.columns[i];
+				const convToVO = self.getConvertCode(column, true);
+
+				writer.writeLine(`            ${column.name}: ${convToVO.left}src.${column.name}${convToVO.right}${i !== diagram.columns.length - 1 ? ',' : ''}`);
+			}
+			writer.writeLine(`        }`);
+			writer.writeLine(`    }`);
+			writer.writeLine(``);
+
+			writer.writeLine(`    export function apply(src: ${diagram.name}VO.Type, dest: ${diagram.name}.Type) {`);
+			for (let i = 0; i < diagram.columns.length; i++) {
+				const column = diagram.columns[i];
+				const convToVO = self.getConvertCode(column, false);
+
+				if (column.primaryKey) {
+					continue;
+				}
+				if (!hasPrimaryKey && column.unique) {
+					continue;
+				}
+
+				writer.writeLine(`        dest.${column.name} = ${convToVO.left}src.${column.name}${convToVO.right}`);
+			}
+			writer.writeLine(`    }`);
+			writer.writeLine(``);
+
+			writer.writeLine(`}`);
+
+			if (!fs.existsSync(`${path}/converter/`)) {
+				fs.mkdirSync(`${path}/converter/`);
+			}
+
+			var file = `${path}/converter/${diagram.name}.ts`;
+			fs.writeFileSync(file, writer.getData());
+		}
+	}
+
+	generateDao(elem, path, options, schema, dataModelName) {
+		var self = this;
+		for (const diagram of elem.ownedElements) {
+			if (!(diagram instanceof type.ERDEntity)) {
+				continue;
+			}
+
+			// var prefix = codegen.stringTag("prefix", diagram);
+
+			var daoWriter = new codegen.CodeWriter(self.getIndentString(options));
+
+			// Header
+			daoWriter.writeLine(`import { ${diagram.name} } from '../entity/${diagram.name}';`);
+			daoWriter.writeLine(`import { ClientBase } from 'pg';`);
+			daoWriter.writeLine(`import SQL, { SQLStatement } from 'sql-template-strings';`);
+			daoWriter.writeLine(``);
+
+			daoWriter.writeLine(`export namespace ${diagram.name}Dao {`);
+			daoWriter.writeLine(``);
+
+			let hasPrimaryKey = false;
+			let hasUniqueKey = false;
+			let hasVersion = false;
+			const uniqueColumns = [];
+			for (let i = 0; i < diagram.columns.length; i++) {
+				const column = diagram.columns[i];
+				if (column.name.toLowerCase() === 'version') {
+					hasVersion = true
+				}
+
+				if (column.primaryKey) {
+					hasPrimaryKey = true;
+					uniqueColumns.push(column);
+					continue;
+				}
+
+				if (column.unique) {
+					hasUniqueKey = true;
+					uniqueColumns.push(column);
+				}
+			}
+
+			// SELECT
+			daoWriter.writeLine(`    function baseQuery(): SQLStatement {`);
+			daoWriter.writeLine(`        return SQL\``);
+			daoWriter.writeLine(`            SELECT`);
+
+			for (let i = 0; i < diagram.columns.length; i++) {
+				const column = diagram.columns[i];
+
+				daoWriter.writeLine(`                ${diagram.name}.${column.name} AS "${column.name}"${i !== diagram.columns.length - 1 ? ',' : ''}`);
+			}
+			daoWriter.writeLine(`            FROM`);
+			daoWriter.writeLine(`                ${diagram.name}`);
+			daoWriter.writeLine(`        \``);
+			daoWriter.writeLine(`    }`);
+			daoWriter.writeLine(``);
+
+			// SELECT: getById or getByKey
+			if (hasPrimaryKey || hasUniqueKey) {
+				let args = '';
+				for (let i = 0; i < uniqueColumns.length; i++) {
+					const columnName = uniqueColumns[i].name;
+
+					args += `${columnName}: ${self.convertType(uniqueColumns[i], false)}${i !== uniqueColumns.length - 1 ? ',' : ''}`;
+				}
+
+				daoWriter.writeLine(`    export async function ${hasPrimaryKey ? 'getById' : 'getByKey'}(client: ClientBase, ${args}): Promise<${diagram.name}.Type | undefined> {`);
+				daoWriter.writeLine(`        const qres = await client.query(baseQuery().append(SQL\``);
+				daoWriter.writeLine(`            WHERE`);
+
+				if (hasPrimaryKey) {
+					daoWriter.writeLine(`                ${diagram.name}.${uniqueColumns[0].name} = \${${uniqueColumns[0].name}} AND`);
+				} else {
+					for (let i = 0; i < uniqueColumns.length; i++) {
+						const columnName = uniqueColumns[i].name;
+						daoWriter.writeLine(`                ${diagram.name}.${columnName} = \${${columnName}}${i !== uniqueColumns.length - 1 || hasVersion ? ' AND' : ''}`);
+					}
+				}
+				daoWriter.writeLine(`        \`))`);
+				daoWriter.writeLine(`        return qres.rowCount !== 0 ? qres.rows[0] : undefined`);
+				daoWriter.writeLine(`    }`);
+				daoWriter.writeLine(``);
+			}
+
+			// SELECT: listAll
+			daoWriter.writeLine(`    export async function listAll(client: ClientBase): Promise<${diagram.name}.Type[]> {`);
+			daoWriter.writeLine(`        const qres = await client.query(baseQuery().append(SQL\``);
+			daoWriter.writeLine(`            ORDER BY`);
+
+			if (hasPrimaryKey) {
+				daoWriter.writeLine(`                ${diagram.name}.${uniqueColumns[0].name} ASC`);
+			} else {
+				for (let i = 0; i < uniqueColumns.length; i++) {
+					const columnName = uniqueColumns[i].name;
+					daoWriter.writeLine(`                ${diagram.name}.${columnName} ASC${i !== uniqueColumns.length - 1 || hasVersion ? ',' : ''}`);
+				}
+			}
+			daoWriter.writeLine(`        \`))`);
+			daoWriter.writeLine(`        return qres.rows`);
+			daoWriter.writeLine(`    }`);
+			daoWriter.writeLine(``);
+
+			// SEQUENCE
+			for (const tag of diagram.tags) {
+				if (tag.name.toLowerCase().indexOf('sequence#') === -1) {
+					continue;
+				}
+
+				const seqName = tag.name.substring(tag.name.indexOf('#') + 1, tag.name.length);
+				daoWriter.writeLine(`    export async function getSequenceId(client: ClientBase) : Promise<number> {`);
+				daoWriter.writeLine(`        const qres = await client.query(SQL\`SELECT NEXTVAL('${seqName}') AS "id"\`)`);
+				daoWriter.writeLine(`        return qres.rows[0].id`);
+				daoWriter.writeLine(`    }`);
+				daoWriter.writeLine(``);
+			}
+
+			// INSERT
+			daoWriter.writeLine(`    export async function insert(client: ClientBase, entity: ${diagram.name}.Type) : Promise<number> {`);
+			daoWriter.writeLine(`        const qres = await client.query(SQL\``);
+			daoWriter.writeLine(`            INSERT INTO ${diagram.name} (`);
+			for (let i = 0; i < diagram.columns.length; i++) {
+				const column = diagram.columns[i];
+
+				daoWriter.writeLine(`                ${column.name}${i !== diagram.columns.length - 1 ? ',' : ''}`);
+			}
+			daoWriter.writeLine(`            ) VALUES (`);
+			for (let i = 0; i < diagram.columns.length; i++) {
+				const column = diagram.columns[i];
+
+				switch (column.name.toLowerCase()) {
+					case 'creation':
+						daoWriter.writeLine(`                NOW()${i !== diagram.columns.length - 1 ? ',' : ''}`);
+						break;
+					case 'modification':
+						daoWriter.writeLine(`                NOW()${i !== diagram.columns.length - 1 ? ',' : ''}`);
+						break;
+					case 'version':
+						daoWriter.writeLine(`                0${i !== diagram.columns.length - 1 ? ',' : ''}`);
+						break;
+					default:
+						daoWriter.writeLine(`                \${entity.${column.name}}${i !== diagram.columns.length - 1 ? ',' : ''}`);
+						break;
+				}
+			}
+			daoWriter.writeLine(`            )`);
+			daoWriter.writeLine(`        \`)`);
+			daoWriter.writeLine(`        return qres.rowCount as number`);
+			daoWriter.writeLine(`    }`);
+			daoWriter.writeLine(``);
+
+			// UPDATE
+			daoWriter.writeLine(`    export async function update(client: ClientBase, entity: ${diagram.name}.Type) : Promise<number> {`);
+			daoWriter.writeLine(`        const qres = await client.query(SQL\``);
+			daoWriter.writeLine(`            UPDATE`);
+			daoWriter.writeLine(`                ${diagram.name}`);
+			daoWriter.writeLine(`            SET`);
+
+			for (let i = 0; i < diagram.columns.length; i++) {
+				const column = diagram.columns[i];
+
+				if (column.primaryKey) {
+					continue;
+				}
+
+				if (!hasPrimaryKey && column.unique) {
+					continue;
+				}
+
+				switch (column.name.toLowerCase()) {
+					case 'creation':
+						continue;
+					case 'createuser':
+						continue;
+					case 'modification':
+						daoWriter.writeLine(`                ${column.name} = NOW()${i !== diagram.columns.length - 1 ? ',' : ''}`);
+						break;
+					case 'version':
+						daoWriter.writeLine(`                ${column.name} = ${column.name} + 1${i !== diagram.columns.length - 1 ? ',' : ''}`);
+						break;
+					default:
+						daoWriter.writeLine(`                ${column.name} = \${entity.${column.name}}${i !== diagram.columns.length - 1 ? ',' : ''}`);
+						break;
+				}
+			}
+
+			if (hasPrimaryKey) {
+				daoWriter.writeLine(`            WHERE`);
+				daoWriter.writeLine(`                ${diagram.name}.${uniqueColumns[0].name} = \${entity.${uniqueColumns[0].name}} AND`);
+			} else if (hasUniqueKey) {
+				daoWriter.writeLine(`            WHERE`);
+				for (let i = 0; i < uniqueColumns.length; i++) {
+					const columnName = uniqueColumns[i].name;
+					daoWriter.writeLine(`                ${diagram.name}.${columnName} = \${entity.${columnName}}${i !== uniqueColumns.length - 1 || hasVersion ? ' AND' : ''}`);
+				}
+			}
+
+			if (hasVersion) {
+				daoWriter.writeLine(`                ${diagram.name}.version = \${entity.version}`);
+			}
+
+			daoWriter.writeLine(`        \`)`);
+			daoWriter.writeLine(`        return qres.rowCount as number`);
+			daoWriter.writeLine(`    }`);
+			daoWriter.writeLine(``);
+
+			// DELETE
+			daoWriter.writeLine(`    export async function del(client: ClientBase, entity: ${diagram.name}.Type) : Promise<number> {`);
+			daoWriter.writeLine(`        const qres = await client.query(SQL\``);
+			daoWriter.writeLine(`            DELETE`);
+			daoWriter.writeLine(`            FROM`);
+			daoWriter.writeLine(`                ${diagram.name}`);
+
+			if (hasPrimaryKey) {
+				daoWriter.writeLine(`            WHERE`);
+				daoWriter.writeLine(`                ${diagram.name}.${uniqueColumns[0].name} = \${entity.${uniqueColumns[0].name}} AND`);
+			} else if (hasUniqueKey) {
+				daoWriter.writeLine(`            WHERE`);
+				for (let i = 0; i < uniqueColumns.length; i++) {
+					const columnName = uniqueColumns[i].name;
+					daoWriter.writeLine(`                ${diagram.name}.${columnName} = \${entity.${columnName}}${i !== uniqueColumns.length - 1 || hasVersion ? ' AND' : ''}`);
+				}
+			}
+
+			if (hasVersion) {
+				daoWriter.writeLine(`                ${diagram.name}.version = \${entity.version}`);
+			}
+
+			daoWriter.writeLine(`        \`)`);
+			daoWriter.writeLine(`        return qres.rowCount as number`);
+			daoWriter.writeLine(`    }`);
+			daoWriter.writeLine(``);
+
+			daoWriter.writeLine(`}`);
+
+			if (!fs.existsSync(`${path}/dao/`)) {
+				fs.mkdirSync(`${path}/dao/`);
+			}
+
+			var file = `${path}/dao/${diagram.name}.ts`;
+			fs.writeFileSync(file, daoWriter.getData());
+		}
+	}
 
   	generateTables (elem, path, options, schema, dataModelName) {
       var self = this;
