@@ -962,6 +962,8 @@ class DDLGenerator {
 				fs.mkdirSync(`${path}/entity/`);
 			}
 
+			fs.writeFileSync(`${path}/entity/.gitignore`, '*.ts\n.gitignore');
+
 			var file = `${path}/entity/${diagram.name}.ts`;
 			fs.writeFileSync(file, entityWriter.getData());
 		}
@@ -1023,6 +1025,8 @@ class DDLGenerator {
 			if (!fs.existsSync(`${path}/vo/`)) {
 				fs.mkdirSync(`${path}/vo/`);
 			}
+
+			fs.writeFileSync(`${path}/vo/.gitignore`, '*.ts\n.gitignore');
 
 			var file = `${path}/vo/${diagram.name}.ts`;
 			fs.writeFileSync(file, entityWriter.getData());
@@ -1090,6 +1094,8 @@ class DDLGenerator {
 			if (!fs.existsSync(`${path}/converter/`)) {
 				fs.mkdirSync(`${path}/converter/`);
 			}
+
+			fs.writeFileSync(`${path}/converter/.gitignore`, '*.ts\n.gitignore');
 
 			var file = `${path}/converter/${diagram.name}.ts`;
 			fs.writeFileSync(file, writer.getData());
@@ -1334,6 +1340,8 @@ class DDLGenerator {
 			if (!fs.existsSync(`${path}/dao/`)) {
 				fs.mkdirSync(`${path}/dao/`);
 			}
+
+			fs.writeFileSync(`${path}/dao/.gitignore`, '*.ts\n.gitignore');
 
 			var file = `${path}/dao/${diagram.name}.ts`;
 			fs.writeFileSync(file, daoWriter.getData());
