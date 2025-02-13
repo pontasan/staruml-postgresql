@@ -1125,6 +1125,7 @@ class DDLGenerator {
 			let hasPrimaryKey = false;
 			let hasUniqueKey = false;
 			let hasVersion = false;
+			const pkColumns = [];
 			const uniqueColumns = [];
 			for (let i = 0; i < diagram.columns.length; i++) {
 				const column = diagram.columns[i];
@@ -1134,6 +1135,7 @@ class DDLGenerator {
 
 				if (column.primaryKey) {
 					hasPrimaryKey = true;
+					pkColumns.push(column);
 					uniqueColumns.push(column);
 					continue;
 				}
@@ -1163,10 +1165,19 @@ class DDLGenerator {
 			// SELECT: getById or getByKey
 			if (hasPrimaryKey || hasUniqueKey) {
 				let args = '';
-				for (let i = 0; i < uniqueColumns.length; i++) {
-					const columnName = uniqueColumns[i].name;
 
-					args += `${columnName}: ${self.convertType(uniqueColumns[i], false)}${i !== uniqueColumns.length - 1 ? ',' : ''}`;
+				if (hasPrimaryKey) {
+					for (let i = 0; i < pkColumns.length; i++) {
+						const columnName = pkColumns[i].name;
+
+						args += `${columnName}: ${self.convertType(pkColumns[i], false)}${(pkColumns[i].nullable || pkColumns[i].primaryKey || pkColumns[i].foreignKey) ? ' | undefined' : ''}${i !== pkColumns.length - 1 ? ', ' : ''}`;
+					}
+				} else {
+					for (let i = 0; i < uniqueColumns.length; i++) {
+						const columnName = uniqueColumns[i].name;
+
+						args += `${columnName}: ${self.convertType(uniqueColumns[i], false)}${i !== uniqueColumns.length - 1 ? ', ' : ''}`;
+					}
 				}
 
 				daoWriter.writeLine(`    export async function ${hasPrimaryKey ? 'getById' : 'getByKey'}(client: ClientBase, ${args}): Promise<${diagram.name}.Type | undefined> {`);
@@ -1174,11 +1185,14 @@ class DDLGenerator {
 				daoWriter.writeLine(`            WHERE`);
 
 				if (hasPrimaryKey) {
-					daoWriter.writeLine(`                ${diagram.name}.${uniqueColumns[0].name} = \${${uniqueColumns[0].name}} AND`);
+					for (let i = 0; i < pkColumns.length; i++) {
+						const columnName = pkColumns[i].name;
+						daoWriter.writeLine(`                ${diagram.name}.${columnName} = \${${columnName}}${i !== pkColumns.length - 1  ? ' AND' : ''}`);
+					}
 				} else {
 					for (let i = 0; i < uniqueColumns.length; i++) {
 						const columnName = uniqueColumns[i].name;
-						daoWriter.writeLine(`                ${diagram.name}.${columnName} = \${${columnName}}${i !== uniqueColumns.length - 1 || hasVersion ? ' AND' : ''}`);
+						daoWriter.writeLine(`                ${diagram.name}.${columnName} = \${${columnName}}${i !== uniqueColumns.length - 1  ? ' AND' : ''}`);
 					}
 				}
 				daoWriter.writeLine(`        \`))`);
@@ -1190,14 +1204,24 @@ class DDLGenerator {
 			// SELECT: listAll
 			daoWriter.writeLine(`    export async function listAll(client: ClientBase): Promise<${diagram.name}.Type[]> {`);
 			daoWriter.writeLine(`        const qres = await client.query(baseQuery().append(SQL\``);
-			daoWriter.writeLine(`            ORDER BY`);
 
 			if (hasPrimaryKey) {
-				daoWriter.writeLine(`                ${diagram.name}.${uniqueColumns[0].name} ASC`);
+				if (pkColumns.length > 0) {
+					daoWriter.writeLine(`            ORDER BY`);
+				}
+
+				for (let i = 0; i < pkColumns.length; i++) {
+					const columnName = pkColumns[i].name;
+					daoWriter.writeLine(`                ${diagram.name}.${columnName} ASC${i !== pkColumns.length - 1 ? ',' : ''}`);
+				}
 			} else {
+				if (uniqueColumns.length > 0) {
+					daoWriter.writeLine(`            ORDER BY`);
+				}
+
 				for (let i = 0; i < uniqueColumns.length; i++) {
 					const columnName = uniqueColumns[i].name;
-					daoWriter.writeLine(`                ${diagram.name}.${columnName} ASC${i !== uniqueColumns.length - 1 || hasVersion ? ',' : ''}`);
+					daoWriter.writeLine(`                ${diagram.name}.${columnName} ASC${i !== uniqueColumns.length - 1 ? ',' : ''}`);
 				}
 			}
 			daoWriter.writeLine(`        \`))`);
@@ -1290,7 +1314,10 @@ class DDLGenerator {
 
 			if (hasPrimaryKey) {
 				daoWriter.writeLine(`            WHERE`);
-				daoWriter.writeLine(`                ${diagram.name}.${uniqueColumns[0].name} = \${entity.${uniqueColumns[0].name}} AND`);
+				for (let i = 0; i < pkColumns.length; i++) {
+					const columnName = pkColumns[i].name;
+					daoWriter.writeLine(`                ${diagram.name}.${columnName} = \${entity.${columnName}}${i !== pkColumns.length - 1 || hasVersion ? ' AND' : ''}`);
+				}
 			} else if (hasUniqueKey) {
 				daoWriter.writeLine(`            WHERE`);
 				for (let i = 0; i < uniqueColumns.length; i++) {
@@ -1317,7 +1344,10 @@ class DDLGenerator {
 
 			if (hasPrimaryKey) {
 				daoWriter.writeLine(`            WHERE`);
-				daoWriter.writeLine(`                ${diagram.name}.${uniqueColumns[0].name} = \${entity.${uniqueColumns[0].name}} AND`);
+				for (let i = 0; i < pkColumns.length; i++) {
+					const columnName = pkColumns[i].name;
+					daoWriter.writeLine(`                ${diagram.name}.${columnName} = \${entity.${columnName}}${i !== pkColumns.length - 1 || hasVersion ? ' AND' : ''}`);
+				}
 			} else if (hasUniqueKey) {
 				daoWriter.writeLine(`            WHERE`);
 				for (let i = 0; i < uniqueColumns.length; i++) {
