@@ -25,539 +25,539 @@ const fs = require('fs')
 const codegen = require('./codegen-utils')
 
 class DDLGenerator {
-    /**
-     * DDL Generator
-     * @constructor
-     *
-     * @param {type.Repository} baseModel
-     * @param {string} basePath generated files and directories to be placed
-     */
-    constructor (baseModel, basePath) {
-        /** @member {type.Model} */
-        this.baseModel = baseModel;
+	/**
+	 * DDL Generator
+	 * @constructor
+	 *
+	 * @param {type.Repository} baseModel
+	 * @param {string} basePath generated files and directories to be placed
+	 */
+	constructor(baseModel, basePath) {
+		/** @member {type.Model} */
+		this.baseModel = baseModel;
 
-        /** @member {string} */
-        this.basePath = basePath;
-    }
-
-
-    /**
-     * Return Indent String based on options
-     * @param {Object} options
-     * @return {string}
-     */
-    getIndentString(options) {
-        if (options.useTab) {
-            return "\t";
-        } else {
-            var i, len, indent = [];
-            for (i = 0, len = options.indentSpaces; i < len; i++) {
-                indent.push(" ");
-            }
-            return indent.join("");
-        }
-    };
-
-    /**
-     * Return Foreign Keys for an Entity
-     * @param {type.ERDEntity} elem
-     * @return {Array.<ERDColumn>}
-     */
-    getIndexColumns(elem) {
-        var keys = [];
-        elem.columns.forEach(function (col) {
-			      var idxTag = codegen.tagByValue('index', col);
-            if (idxTag) {
-                keys.push(col);
-            }
-        });
-        return keys;
-    };
-
-    dataType(elem, options) {
-		    var varLenFunc = function (elem, options) {
-    			  return elem.length.length ? "(" + elem.length + ")" : "";
-    		}
-    		var noLenFunc = function (elem, options) {
-    			return "";
-    		}
-    		var typeOf = function (type, lenFunc) {
-    			return function (elem, options) {
-    				return type + lenFunc(elem, options);
-    			}
-    		}
-    		var typeOfWithOverride = function (type, override, lenFunc) {
-    			return function (elem, options) {
-    				if (elem.length == -1) {
-    					return override + lenFunc(elem, options);
-    				} else {
-    					return type + lenFunc(elem, options);
-    				}
-    			}
-    		}
-
-    		var map = {
-    			VARCHAR: typeOf("varchar", varLenFunc),
-    			BOOLEAN: typeOf("boolean", noLenFunc),
-    			INTEGER: typeOfWithOverride("integer", "serial", noLenFunc),
-    			CHAR: typeOf("char", varLenFunc),
-    			BINARY: typeOf("bytea", noLenFunc),
-    			VARBINARY: typeOf("bytea", noLenFunc),
-    			BLOB: typeOf("bytea", noLenFunc),
-    			TEXT: typeOf("text", noLenFunc),
-    			SMALLINT: typeOfWithOverride("smallint", "smallserial", noLenFunc),
-    			BIGINT: typeOfWithOverride("bigint", "bigserial", noLenFunc),
-    			DECIMAL: typeOf("numeric", varLenFunc),
-    			NUMERIC: typeOf("numeric", varLenFunc),
-    			FLOAT: typeOf("real", noLenFunc),
-    			DOUBLE: typeOf("double precision", noLenFunc),
-    			BIT: typeOf("bit", varLenFunc),
-    			DATE: typeOf("date", noLenFunc),
-    			TIME: typeOf("time without time zone", noLenFunc),
-    			DATETIME: typeOf("timestamp with time zone", noLenFunc),
-          TIMESTAMPTZ: typeOf("timestamp with time zone", noLenFunc),
-    			TIMESTAMP: typeOf("timestamp without time zone", noLenFunc),
-    			POINT: typeOf("point", noLenFunc),
-    			POLYGON: typeOf("polygon", noLenFunc),
-          CIDR: typeOf("cidr", noLenFunc),
-          INET: typeOf("inet", noLenFunc)
-		    };
-    		if (typeof map[elem.type] !== 'undefined') {
-    			return map[elem.type](elem, options);
-    		} else {
-    			return elem.type;
-    		}
-    }
-
-    /**
-     * Return DDL column string
-     * @param {type.ERDColumn} elem
-     * @param {Object} options
-     * @return {String}
-     */
-    columnDeclaration(columnName, elem, comments, defaultValue, options) {
-        var self = this;
-        var line = columnName;
-        var _type = self.dataType(elem, options);
-        line += " " + _type;
-        if (elem.primaryKey || !elem.nullable) {
-            line += " NOT NULL";
-        }
-    		if (_type.indexOf('serial') == -1) {
-    			line += defaultValue;
-    		}
-    		var documentation = elem.documentation;
-    		if (!!documentation) {
-    			comments.push({
-    				col: columnName,
-    				doc: codegen.asComment(documentation)
-    			});
-    		}
-    		if (typeof(elem.is_enum) !== 'undefined') {
-    			elem.type = 'enum';
-    		}
-        return line;
-    };
+		/** @member {string} */
+		this.basePath = basePath;
+	}
 
 
-    /**
-     * Create indexes for Foreign Key columns
-     * @param {StringWriter} codeWriter
-     * @param {type.ERDEntity} elem
-     * @param {Object} options
-     */
-    writeUserIndexes(codeWriter, tableName, elem, options) {
-        var self = this,
-            idxCols = self.getIndexColumns(elem);
+	/**
+	 * Return Indent String based on options
+	 * @param {Object} options
+	 * @return {string}
+	 */
+	getIndentString(options) {
+		if (options.useTab) {
+			return "\t";
+		} else {
+			var i, len, indent = [];
+			for (i = 0, len = options.indentSpaces; i < len; i++) {
+				indent.push(" ");
+			}
+			return indent.join("");
+		}
+	};
 
-    		var idxDef = [];
-    		idxCols.forEach(function (col) {
-    			var idxTags = codegen.tagsByValue('index', col);
-    			var colName = self.columnName(col, options);
-    			idxTags.forEach(function (tag) {
-    				idxDef.push({
-    					column: colName,
-    					idxName: tag.name,
-    					seq: tag.number,
-    					desc: tag.checked,
-    				});
-    			});
-    		});
+	/**
+	 * Return Foreign Keys for an Entity
+	 * @param {type.ERDEntity} elem
+	 * @return {Array.<ERDColumn>}
+	 */
+	getIndexColumns(elem) {
+		var keys = [];
+		elem.columns.forEach(function (col) {
+			var idxTag = codegen.tagByValue('index', col);
+			if (idxTag) {
+				keys.push(col);
+			}
+		});
+		return keys;
+	};
 
-    		idxDef = idxDef.reduce((acc,idx) => {(acc[idx.idxName] = (acc[idx.idxName] || [])).push(idx); return acc;}, []);
-    		idxDef.forEach(function (o) {
-    			var cols = [];
-    			// sort the index columns by seq
-          o.sort((i1,i2) => (i1.seq > i2.seq ? 1 :(i1.seq < i2.seq ? -1 : 0)))
-    			o.forEach(function (obj) {
-    				if (obj.desc)
-    					cols.push(obj.column + " DESC");
-    				else
-    					cols.push(obj.column);
-    			});
-    			// generate the index
-    			var idxName = o[0].idxName;
-    			codeWriter.writeLine(" -- Index: " + idxName);
-    			codeWriter.writeLine("CREATE INDEX ON " + tableName);
-    			codeWriter.indent();
-    			codeWriter.writeLine("(" + cols.join(", ") + ");");
-    			codeWriter.outdent();
-    		});
-    		codeWriter.writeLine();
-    };
+	dataType(elem, options) {
+		var varLenFunc = function (elem, options) {
+			return elem.length.length ? "(" + elem.length + ")" : "";
+		}
+		var noLenFunc = function (elem, options) {
+			return "";
+		}
+		var typeOf = function (type, lenFunc) {
+			return function (elem, options) {
+				return type + lenFunc(elem, options);
+			}
+		}
+		var typeOfWithOverride = function (type, override, lenFunc) {
+			return function (elem, options) {
+				if (elem.length == -1) {
+					return override + lenFunc(elem, options);
+				} else {
+					return type + lenFunc(elem, options);
+				}
+			}
+		}
 
-	  tableName (elem, options) {
-  		var tag = codegen.tag('table', elem);
-  		var dbName = '';
-  		if (tag) {
-  			dbName = tag.value;
-  		}
-  		if (!dbName) {
-  			dbName = codegen.replaceAll(elem.name, ' ', '_');
-  		}
-  		if (!codegen.isValidIdentifier(dbName)) {
-  			app.toast.error("Table name is not valid: " + dbName
-  				+ ", please edit the table tag for " + elem.name);
-  			return '';
-  		}
-  		return dbName;
-  	}
+		var map = {
+			VARCHAR: typeOf("varchar", varLenFunc),
+			BOOLEAN: typeOf("boolean", noLenFunc),
+			INTEGER: typeOfWithOverride("integer", "serial", noLenFunc),
+			CHAR: typeOf("char", varLenFunc),
+			BINARY: typeOf("bytea", noLenFunc),
+			VARBINARY: typeOf("bytea", noLenFunc),
+			BLOB: typeOf("bytea", noLenFunc),
+			TEXT: typeOf("text", noLenFunc),
+			SMALLINT: typeOfWithOverride("smallint", "smallserial", noLenFunc),
+			BIGINT: typeOfWithOverride("bigint", "bigserial", noLenFunc),
+			DECIMAL: typeOf("numeric", varLenFunc),
+			NUMERIC: typeOf("numeric", varLenFunc),
+			FLOAT: typeOf("real", noLenFunc),
+			DOUBLE: typeOf("double precision", noLenFunc),
+			BIT: typeOf("bit", varLenFunc),
+			DATE: typeOf("date", noLenFunc),
+			TIME: typeOf("time without time zone", noLenFunc),
+			DATETIME: typeOf("timestamp with time zone", noLenFunc),
+			TIMESTAMPTZ: typeOf("timestamp with time zone", noLenFunc),
+			TIMESTAMP: typeOf("timestamp without time zone", noLenFunc),
+			POINT: typeOf("point", noLenFunc),
+			POLYGON: typeOf("polygon", noLenFunc),
+			CIDR: typeOf("cidr", noLenFunc),
+			INET: typeOf("inet", noLenFunc)
+		};
+		if (typeof map[elem.type] !== 'undefined') {
+			return map[elem.type](elem, options);
+		} else {
+			return elem.type;
+		}
+	}
 
-	  columnName (elem, options) {
-  		var tag = codegen.tag('column', elem);
-  		var dbName = '';
-  		if (tag) {
-  			dbName = tag.value;
-  		}
-  		if (!dbName) {
-  			dbName = codegen.replaceAll(elem.name, ' ', '_');
-  		}
-  		if (!codegen.isValidIdentifier(dbName)) {
-  			app.toast.error("Column name is not valid: " + dbName
-  				+ ", please edit the column tag for " + elem.name);
-  			return '';
-  		}
-  		return dbName;
-	  }
+	/**
+	 * Return DDL column string
+	 * @param {type.ERDColumn} elem
+	 * @param {Object} options
+	 * @return {String}
+	 */
+	columnDeclaration(columnName, elem, comments, defaultValue, options) {
+		var self = this;
+		var line = columnName;
+		var _type = self.dataType(elem, options);
+		line += " " + _type;
+		if (elem.primaryKey || !elem.nullable) {
+			line += " NOT NULL";
+		}
+		if (_type.indexOf('serial') == -1) {
+			line += defaultValue;
+		}
+		var documentation = elem.documentation;
+		if (!!documentation) {
+			comments.push({
+				col: columnName,
+				doc: codegen.asComment(documentation)
+			});
+		}
+		if (typeof (elem.is_enum) !== 'undefined') {
+			elem.type = 'enum';
+		}
+		return line;
+	};
 
-	  columnDefault (elem, options) {
-  		var tag = codegen.tag('default', elem);
-  		if (!tag) {
-  			return "";
-  		}
 
-  		var dbName = tag.value;
-  		return ' DEFAULT ' + dbName;
-  	}
+	/**
+	 * Create indexes for Foreign Key columns
+	 * @param {StringWriter} codeWriter
+	 * @param {type.ERDEntity} elem
+	 * @param {Object} options
+	 */
+	writeUserIndexes(codeWriter, tableName, elem, options) {
+		var self = this,
+			idxCols = self.getIndexColumns(elem);
 
-    /**
-     * Write Table
-     * @param {StringWriter} codeWriter
-     * @param {type.ERDEntity} elem
-     * @param {Object} options
-     */
-    generateTable (codeWriter, dropWriter, elem, options, schemaName, prefix, refs) {
-        var self = this;
-        var lines = [],
-            primaryKeys = [],
-      			foreignKeys = [],
-      			foreignKeyCtr = [],
-            uniques = [],
-      			comments = [],
-      			drop_enums = [];
+		var idxDef = [];
+		idxCols.forEach(function (col) {
+			var idxTags = codegen.tagsByValue('index', col);
+			var colName = self.columnName(col, options);
+			idxTags.forEach(function (tag) {
+				idxDef.push({
+					column: colName,
+					idxName: tag.name,
+					seq: tag.number,
+					desc: tag.checked,
+				});
+			});
+		});
 
-    		var tableName = prefix + self.tableName(elem, options);
-    		var table = schemaName + "." + tableName
+		idxDef = idxDef.reduce((acc, idx) => { (acc[idx.idxName] = (acc[idx.idxName] || [])).push(idx); return acc; }, []);
+		idxDef.forEach(function (o) {
+			var cols = [];
+			// sort the index columns by seq
+			o.sort((i1, i2) => (i1.seq > i2.seq ? 1 : (i1.seq < i2.seq ? -1 : 0)))
+			o.forEach(function (obj) {
+				if (obj.desc)
+					cols.push(obj.column + " DESC");
+				else
+					cols.push(obj.column);
+			});
+			// generate the index
+			var idxName = o[0].idxName;
+			codeWriter.writeLine(" -- Index: " + idxName);
+			codeWriter.writeLine("CREATE INDEX ON " + tableName);
+			codeWriter.indent();
+			codeWriter.writeLine("(" + cols.join(", ") + ");");
+			codeWriter.outdent();
+		});
+		codeWriter.writeLine();
+	};
 
-    		// create enums
-    		elem.columns.forEach(function (col) {
-    			var _type = self.dataType(col, options);
-    			if (_type && _type.toLowerCase() === "enum") {
-    				var enums = codegen.stringTag(_type, col);
-    				if (enums) {
-    					var column = self.columnName(col, options);
-    					var typeName = table + "_" + column;
-    					var enumDecl = codegen.enumAsList(enums);
+	tableName(elem, options) {
+		var tag = codegen.tag('table', elem);
+		var dbName = '';
+		if (tag) {
+			dbName = tag.value;
+		}
+		if (!dbName) {
+			dbName = codegen.replaceAll(elem.name, ' ', '_');
+		}
+		if (!codegen.isValidIdentifier(dbName)) {
+			app.toast.error("Table name is not valid: " + dbName
+				+ ", please edit the table tag for " + elem.name);
+			return '';
+		}
+		return dbName;
+	}
 
-    					codeWriter.writeLine("CREATE TYPE " + typeName + " AS ENUM(" + enumDecl + ");\n");
-    					codeWriter.writeLine("CREATE CAST (CHARACTER VARYING AS " + typeName + ") WITH INOUT AS IMPLICIT;\n");
-    					col.type = typeName;
-    					col.is_enum = 1;
-    					drop_enums.push("DROP TYPE " + typeName + " CASCADE;");
-    				}
-    			}
-    		});
+	columnName(elem, options) {
+		var tag = codegen.tag('column', elem);
+		var dbName = '';
+		if (tag) {
+			dbName = tag.value;
+		}
+		if (!dbName) {
+			dbName = codegen.replaceAll(elem.name, ' ', '_');
+		}
+		if (!codegen.isValidIdentifier(dbName)) {
+			app.toast.error("Column name is not valid: " + dbName
+				+ ", please edit the column tag for " + elem.name);
+			return '';
+		}
+		return dbName;
+	}
 
-        // parse the tags in the table
-        let constraintTags = [];
-        let indexInstructions = [];
-        let sequenceInstructions = [];
-        const parseTag = tag => {
-            let array = tag.name.split("#", 2);
-            return {
-                tag,
-                instruction: array[0],
-                targetName: array[1]
-            }
-        };
-        elem.tags.forEach((item) => {
-            if (item.name.startsWith('constraint')) constraintTags.push(item);
-            else if (item.name.startsWith('index#')) indexInstructions.push(parseTag(item));
-            else if (item.name.startsWith('sequence#')) sequenceInstructions.push(parseTag(item));
-        });
+	columnDefault(elem, options) {
+		var tag = codegen.tag('default', elem);
+		if (!tag) {
+			return "";
+		}
 
-        // Table
-        codeWriter.writeLine("CREATE TABLE " + table + " (");
-        codeWriter.indent();
-		    dropWriter.writeLine("DROP TABLE IF EXISTS " + table + " CASCADE;");
-    		// drop enums
-    		for (var i = 0, len = drop_enums.length; i < len; i++) {
-                dropWriter.writeLine(drop_enums[i]);
-            }
+		var dbName = tag.value;
+		return ' DEFAULT ' + dbName;
+	}
 
-            // Columns
-            elem.columns.forEach(function (col) {
-    			var column = self.columnName(col, options);
-    			if (column) {
-    				if (col.primaryKey) {
-    					primaryKeys.push(column);
-    				} else
-    					if (col.unique) {
-    						uniques.push(column);
-    					} else
-    						if (column && col.foreignKey && !col.primaryKey) {
-    							foreignKeys.push(column);
-    						}
-    				if (options.foreignKeyConstraint && col.referenceTo) {
-    					foreignKeyCtr.push(col);
-    				}
-    			}
+	/**
+	 * Write Table
+	 * @param {StringWriter} codeWriter
+	 * @param {type.ERDEntity} elem
+	 * @param {Object} options
+	 */
+	generateTable(codeWriter, dropWriter, elem, options, schemaName, prefix, refs) {
+		var self = this;
+		var lines = [],
+			primaryKeys = [],
+			foreignKeys = [],
+			foreignKeyCtr = [],
+			uniques = [],
+			comments = [],
+			drop_enums = [];
 
-			    var defaultValue = self.columnDefault(col, options);
-          column && lines.push(self.columnDeclaration(column, col, comments,
-    				    defaultValue, options));
-            });
+		var tableName = prefix + self.tableName(elem, options);
+		var table = schemaName + "." + tableName
 
-          // Primary Keys
-          if (primaryKeys.length > 0) {
-              lines.push("PRIMARY KEY (" + primaryKeys.join(", ") + ")");
-          }
+		// create enums
+		elem.columns.forEach(function (col) {
+			var _type = self.dataType(col, options);
+			if (_type && _type.toLowerCase() === "enum") {
+				var enums = codegen.stringTag(_type, col);
+				if (enums) {
+					var column = self.columnName(col, options);
+					var typeName = table + "_" + column;
+					var enumDecl = codegen.enumAsList(enums);
 
-          // Constraints
-          constraintTags.forEach(item => {
-              lines.push(item.value);
-          });
+					codeWriter.writeLine("CREATE TYPE " + typeName + " AS ENUM(" + enumDecl + ");\n");
+					codeWriter.writeLine("CREATE CAST (CHARACTER VARYING AS " + typeName + ") WITH INOUT AS IMPLICIT;\n");
+					col.type = typeName;
+					col.is_enum = 1;
+					drop_enums.push("DROP TYPE " + typeName + " CASCADE;");
+				}
+			}
+		});
 
-          // Write lines
-          for (var i = 0, len = lines.length; i < len; i++) {
-              codeWriter.writeLine(lines[i] + (i < len - 1 ? "," : ""));
-          }
+		// parse the tags in the table
+		let constraintTags = [];
+		let indexInstructions = [];
+		let sequenceInstructions = [];
+		const parseTag = tag => {
+			let array = tag.name.split("#", 2);
+			return {
+				tag,
+				instruction: array[0],
+				targetName: array[1]
+			}
+		};
+		elem.tags.forEach((item) => {
+			if (item.name.startsWith('constraint')) constraintTags.push(item);
+			else if (item.name.startsWith('index#')) indexInstructions.push(parseTag(item));
+			else if (item.name.startsWith('sequence#')) sequenceInstructions.push(parseTag(item));
+		});
 
-          codeWriter.outdent();
-          codeWriter.writeLine(") WITHOUT OIDS;");
-          codeWriter.writeLine();
+		// Table
+		codeWriter.writeLine("CREATE TABLE " + table + " (");
+		codeWriter.indent();
+		dropWriter.writeLine("DROP TABLE IF EXISTS " + table + " CASCADE;");
+		// drop enums
+		for (var i = 0, len = drop_enums.length; i < len; i++) {
+			dropWriter.writeLine(drop_enums[i]);
+		}
 
-      		// uniques (combined?)
-      		if (uniques.length > 0) {
-      			codeWriter.writeLine("ALTER TABLE " + table);
-      			codeWriter.indent();
-      			codeWriter.writeLine("ADD UNIQUE (" + uniques.join(", ") + ");");
-      			codeWriter.outdent();
-      			codeWriter.writeLine();
-      		}
+		// Columns
+		elem.columns.forEach(function (col) {
+			var column = self.columnName(col, options);
+			if (column) {
+				if (col.primaryKey) {
+					primaryKeys.push(column);
+				} else
+					if (col.unique) {
+						uniques.push(column);
+					} else
+						if (column && col.foreignKey && !col.primaryKey) {
+							foreignKeys.push(column);
+						}
+				if (options.foreignKeyConstraint && col.referenceTo) {
+					foreignKeyCtr.push(col);
+				}
+			}
 
-      		if (foreignKeyCtr.length > 0) {
-      			for (var i = 0, len = foreignKeyCtr.length; i < len; i++) {
-      				var col = foreignKeyCtr[i];
-      				var colName = self.columnName(col, options);
-      				var refCol = col.referenceTo;
-      				var refColName = self.columnName(refCol, options);
-      				var refTableObj = refCol._parent;
-      				var refTableName = self.tableName(refTableObj, options);
-      				if (refTableObj._parent instanceof type.ERDDiagram) {
-      					var prefix = codegen.stringTag("prefix", refTableObj._parent)
-      					refTableName = prefix + refTableName;
-      				}
+			var defaultValue = self.columnDefault(col, options);
+			column && lines.push(self.columnDeclaration(column, col, comments,
+				defaultValue, options));
+		});
 
-      				var refSchemaName = self.schemaName(refTableObj._parent, options);
-      				refs.push("ALTER TABLE " + table + " ADD CONSTRAINT FK_" + tableName + "__" + colName
-      					+ " FOREIGN KEY (" + colName + ") REFERENCES " + refSchemaName + "." + refTableName
-      					+ "(" + refColName + ");");
-      			}
-      		}
+		// Primary Keys
+		if (primaryKeys.length > 0) {
+			lines.push("PRIMARY KEY (" + primaryKeys.join(", ") + ")");
+		}
 
-      		// generate simple FK indexes
-      		if (foreignKeys.length > 0) {
-      			for (var i = 0, len = foreignKeys.length; i < len; i++) {
-      				codeWriter.writeLine("CREATE INDEX ON " + table);
-      				codeWriter.indent();
-      				codeWriter.writeLine("(" + foreignKeys[i] + ");");
-      				codeWriter.outdent();
-      			}
-      			codeWriter.writeLine();
-      		}
+		// Constraints
+		constraintTags.forEach(item => {
+			lines.push(item.value);
+		});
 
-		      self.writeUserIndexes(codeWriter, table, elem, options);
+		// Write lines
+		for (var i = 0, len = lines.length; i < len; i++) {
+			codeWriter.writeLine(lines[i] + (i < len - 1 ? "," : ""));
+		}
 
-            // generate indexes
-            if (indexInstructions.length > 0) {
-                indexInstructions.forEach(item => {
-                    codeWriter.writeLine(item.tag.value + ";");
-                    dropWriter.writeLine("DROP INDEX IF EXISTS " + item.targetName + ";");
-                });
-                codeWriter.writeLine();
-                dropWriter.writeLine();
-            }
+		codeWriter.outdent();
+		codeWriter.writeLine(") WITHOUT OIDS;");
+		codeWriter.writeLine();
 
-            // generate sequences
-            if (sequenceInstructions.length > 0) {
-                sequenceInstructions.forEach(item => {
-                    codeWriter.writeLine(item.tag.value + ";");
-                    dropWriter.writeLine("DROP SEQUENCE IF EXISTS " + item.targetName + ";");
-                });
-                codeWriter.writeLine();
-                dropWriter.writeLine();
-            }
+		// uniques (combined?)
+		if (uniques.length > 0) {
+			codeWriter.writeLine("ALTER TABLE " + table);
+			codeWriter.indent();
+			codeWriter.writeLine("ADD UNIQUE (" + uniques.join(", ") + ");");
+			codeWriter.outdent();
+			codeWriter.writeLine();
+		}
 
-      		var documentation = elem.documentation;
-      		if (!!documentation) {
-      			codeWriter.writeLine("COMMENT ON TABLE " + table);
-      			codeWriter.indent();
-      			codeWriter.writeLine("IS " + codegen.asComment(documentation) + ";");
-      			codeWriter.outdent();
-      		}
-      		comments.forEach(function (comment) {
-      			codeWriter.writeLine("COMMENT ON COLUMN " + table +
-      				"." + comment.col);
-      			codeWriter.indent();
-      			codeWriter.writeLine("IS " + comment.doc + ";");
-      			codeWriter.outdent();
-      		});
-      		(!documentation && comments.length == 0) || codeWriter.writeLine();
-    };
+		if (foreignKeyCtr.length > 0) {
+			for (var i = 0, len = foreignKeyCtr.length; i < len; i++) {
+				var col = foreignKeyCtr[i];
+				var colName = self.columnName(col, options);
+				var refCol = col.referenceTo;
+				var refColName = self.columnName(refCol, options);
+				var refTableObj = refCol._parent;
+				var refTableName = self.tableName(refTableObj, options);
+				if (refTableObj._parent instanceof type.ERDDiagram) {
+					var prefix = codegen.stringTag("prefix", refTableObj._parent)
+					refTableName = prefix + refTableName;
+				}
 
-	  generateDatabase (elem, path, options) {
-  		if (elem instanceof type.Project) {
-  			var tag = codegen.tag('database', elem);
-  			var dbName = '';
-  			if (tag) {
-  				dbName = tag.value;
-  			}
-  			if (!dbName) {
-  				dbName = codegen.replaceAll(elem.name, ' ', '_');
-  			}
-  			if (!tag && !codegen.isValidIdentifier(elem.name)) {
-  				codegen.addStringTag('database', elem, dbName.toLowerCase());
-  			}
-  			if (!tag) {
-  				codegen.addStringTag('database', elem, dbName.toLowerCase());
-  			}
-  			if (!codegen.isValidIdentifier(dbName)) {
-  				app.toast.warning("Database name is not valid: " + dbName
-  					+ ", please edit the database tag for " + elem.name);
-  				return false;
-  			}
-        var codeWriter = new codegen.CodeWriter(this.getIndentString(options));
-  			codeWriter.writeLine("-- Database: " + elem.name);
-  			codeWriter.writeLine("-- Author: " + elem.author);
-  			codeWriter.writeLine('CREATE DATABASE ' + dbName.toLowerCase());
-  			codeWriter.indent();
-  			codeWriter.writeLine("WITH OWNER = " + options.owner);
-  			codeWriter.indent();
-  			codeWriter.writeLine("ENCODING = '" + options.encoding + "'");
-  			codeWriter.writeLine("TABLESPACE = " + options.tablespace);
+				var refSchemaName = self.schemaName(refTableObj._parent, options);
+				refs.push("ALTER TABLE " + table + " ADD CONSTRAINT FK_" + tableName + "__" + colName
+					+ " FOREIGN KEY (" + colName + ") REFERENCES " + refSchemaName + "." + refTableName
+					+ "(" + refColName + ");");
+			}
+		}
 
-  			var collation = options.dbCollation;
-  			if (collation !== 'default') {
-  				codeWriter.writeLine("LC_COLLATE = '" + collation + "'");
-  				codeWriter.writeLine("LC_CTYPE = '" + collation + "'");
-  			}
-  			codeWriter.writeLine("CONNECTION LIMIT = -1;");
-  			codeWriter.outdent();
-  			codeWriter.outdent();
-  			var documentation = elem.documentation;
-  			if (!!documentation) {
-  				codeWriter.writeLine();
-  				codeWriter.writeLine("COMMENT ON DATABASE " + dbName.toLowerCase());
-  				codeWriter.indent();
-  				codeWriter.writeLine("IS " + codegen.asComment(documentation) + ";");
-  			}
+		// generate simple FK indexes
+		if (foreignKeys.length > 0) {
+			for (var i = 0, len = foreignKeys.length; i < len; i++) {
+				codeWriter.writeLine("CREATE INDEX ON " + table);
+				codeWriter.indent();
+				codeWriter.writeLine("(" + foreignKeys[i] + ");");
+				codeWriter.outdent();
+			}
+			codeWriter.writeLine();
+		}
 
-		    var file = path + "/db_create.sql";
-        fs.writeFileSync(file, codeWriter.getData());
+		self.writeUserIndexes(codeWriter, table, elem, options);
 
-		    codeWriter = new codegen.CodeWriter(this.getIndentString(options));
-  			codeWriter.writeLine('DROP DATABASE ' + dbName.toLowerCase() + ";");
+		// generate indexes
+		if (indexInstructions.length > 0) {
+			indexInstructions.forEach(item => {
+				codeWriter.writeLine(item.tag.value + ";");
+				dropWriter.writeLine("DROP INDEX IF EXISTS " + item.targetName + ";");
+			});
+			codeWriter.writeLine();
+			dropWriter.writeLine();
+		}
 
-		    file = path + "/db_drop.sql";
-        fs.writeFileSync(file, codeWriter.getData());
+		// generate sequences
+		if (sequenceInstructions.length > 0) {
+			sequenceInstructions.forEach(item => {
+				codeWriter.writeLine(item.tag.value + ";");
+				dropWriter.writeLine("DROP SEQUENCE IF EXISTS " + item.targetName + ";");
+			});
+			codeWriter.writeLine();
+			dropWriter.writeLine();
+		}
 
-		    return true;
-	    } else {
-		    app.toast.error("No project found, database DDL generator expects a main project");
-		    return false;
-	    }
-    }
+		var documentation = elem.documentation;
+		if (!!documentation) {
+			codeWriter.writeLine("COMMENT ON TABLE " + table);
+			codeWriter.indent();
+			codeWriter.writeLine("IS " + codegen.asComment(documentation) + ";");
+			codeWriter.outdent();
+		}
+		comments.forEach(function (comment) {
+			codeWriter.writeLine("COMMENT ON COLUMN " + table +
+				"." + comment.col);
+			codeWriter.indent();
+			codeWriter.writeLine("IS " + comment.doc + ";");
+			codeWriter.outdent();
+		});
+		(!documentation && comments.length == 0) || codeWriter.writeLine();
+	};
 
-  	schemaName (elem, options) {
-  		if (elem instanceof type.ERDDiagram) {
-  			elem = elem._parent;
-  		}
-  		if (!(elem instanceof type.ERDDataModel)) {
-  			return 'public';
-  		}
-  		var dbName = codegen.stringTag('schema', elem);
-  		if (!dbName) {
-  			dbName = 'public';
-  		} else if (!codegen.isValidIdentifier(dbName)) {
-  			app.toast.warning("Schema name not valid: " + dbName);
-  		}
-  		return dbName;
-  	}
+	generateDatabase(elem, path, options) {
+		if (elem instanceof type.Project) {
+			var tag = codegen.tag('database', elem);
+			var dbName = '';
+			if (tag) {
+				dbName = tag.value;
+			}
+			if (!dbName) {
+				dbName = codegen.replaceAll(elem.name, ' ', '_');
+			}
+			if (!tag && !codegen.isValidIdentifier(elem.name)) {
+				codegen.addStringTag('database', elem, dbName.toLowerCase());
+			}
+			if (!tag) {
+				codegen.addStringTag('database', elem, dbName.toLowerCase());
+			}
+			if (!codegen.isValidIdentifier(dbName)) {
+				app.toast.warning("Database name is not valid: " + dbName
+					+ ", please edit the database tag for " + elem.name);
+				return false;
+			}
+			var codeWriter = new codegen.CodeWriter(this.getIndentString(options));
+			codeWriter.writeLine("-- Database: " + elem.name);
+			codeWriter.writeLine("-- Author: " + elem.author);
+			codeWriter.writeLine('CREATE DATABASE ' + dbName.toLowerCase());
+			codeWriter.indent();
+			codeWriter.writeLine("WITH OWNER = " + options.owner);
+			codeWriter.indent();
+			codeWriter.writeLine("ENCODING = '" + options.encoding + "'");
+			codeWriter.writeLine("TABLESPACE = " + options.tablespace);
 
-  	generateSchema (elem, path, options) {
-  		var codeWriter = new codegen.CodeWriter(this.getIndentString(options));
-  		var dropWriter = new codegen.CodeWriter(this.getIndentString(options));
-  		var schemas = [];
-  		var self = this;
-  		elem.ownedElements.forEach(function (e) {
-  			if (e instanceof type.ERDDataModel) {
+			var collation = options.dbCollation;
+			if (collation !== 'default') {
+				codeWriter.writeLine("LC_COLLATE = '" + collation + "'");
+				codeWriter.writeLine("LC_CTYPE = '" + collation + "'");
+			}
+			codeWriter.writeLine("CONNECTION LIMIT = -1;");
+			codeWriter.outdent();
+			codeWriter.outdent();
+			var documentation = elem.documentation;
+			if (!!documentation) {
+				codeWriter.writeLine();
+				codeWriter.writeLine("COMMENT ON DATABASE " + dbName.toLowerCase());
+				codeWriter.indent();
+				codeWriter.writeLine("IS " + codegen.asComment(documentation) + ";");
+			}
 
-  				var schemaName = self.schemaName(e, options).toLowerCase();
-  				var dataModelName = codegen.replaceAll(e.name, ' ', '_').toLowerCase();
-  				self.generateTables(e, path, options, schemaName, dataModelName);
+			var file = path + "/db_create.sql";
+			fs.writeFileSync(file, codeWriter.getData());
+
+			codeWriter = new codegen.CodeWriter(this.getIndentString(options));
+			codeWriter.writeLine('DROP DATABASE ' + dbName.toLowerCase() + ";");
+
+			file = path + "/db_drop.sql";
+			fs.writeFileSync(file, codeWriter.getData());
+
+			return true;
+		} else {
+			app.toast.error("No project found, database DDL generator expects a main project");
+			return false;
+		}
+	}
+
+	schemaName(elem, options) {
+		if (elem instanceof type.ERDDiagram) {
+			elem = elem._parent;
+		}
+		if (!(elem instanceof type.ERDDataModel)) {
+			return 'public';
+		}
+		var dbName = codegen.stringTag('schema', elem);
+		if (!dbName) {
+			dbName = 'public';
+		} else if (!codegen.isValidIdentifier(dbName)) {
+			app.toast.warning("Schema name not valid: " + dbName);
+		}
+		return dbName;
+	}
+
+	generateSchema(elem, path, options) {
+		var codeWriter = new codegen.CodeWriter(this.getIndentString(options));
+		var dropWriter = new codegen.CodeWriter(this.getIndentString(options));
+		var schemas = [];
+		var self = this;
+		elem.ownedElements.forEach(function (e) {
+			if (e instanceof type.ERDDataModel) {
+
+				var schemaName = self.schemaName(e, options).toLowerCase();
+				var dataModelName = codegen.replaceAll(e.name, ' ', '_').toLowerCase();
+				self.generateTables(e, path, options, schemaName, dataModelName);
 				self.generateEntity(e, path, options, schemaName, dataModelName);
 				self.generateVO(e, path, options, schemaName, dataModelName);
 				self.generateConverter(e, path, options, schemaName, dataModelName);
 				self.generateDao(e, path, options, schemaName, dataModelName);
-  				if (schemaName !== 'public' && schemas.indexOf(schemaName) == -1) {
-  					schemas.push(schemaName);
-  					codeWriter.writeLine("-- Schema for: " + e.name);
-  					codeWriter.writeLine('CREATE SCHEMA ' + schemaName);
-  					codeWriter.indent();
-  					codeWriter.writeLine("AUTHORIZATION " + options.owner + ";");
-  					codeWriter.outdent();
-  					var documentation = e.documentation;
-  					if (documentation) {
-  						codeWriter.writeLine();
-  						codeWriter.writeLine("COMMENT ON SCHEMA " + schemaName);
-  						codeWriter.indent();
-  						codeWriter.writeLine("IS " + codegen.asComment(documentation) + ";");
-  						codeWriter.outdent();
-  					}
-  					dropWriter.writeLine("DROP SCHEMA " + schemaName + ";");
-  				}
-  			}
-  		});
-  		if (codeWriter.hasContent()) {
-  			var file = path + "/schema_create.sql";
-  			fs.writeFileSync(file, codeWriter.getData());
-  			file = path + "/schema_drop.sql";
-  			fs.writeFileSync(file, dropWriter.getData());
-  		}
+				if (schemaName !== 'public' && schemas.indexOf(schemaName) == -1) {
+					schemas.push(schemaName);
+					codeWriter.writeLine("-- Schema for: " + e.name);
+					codeWriter.writeLine('CREATE SCHEMA ' + schemaName);
+					codeWriter.indent();
+					codeWriter.writeLine("AUTHORIZATION " + options.owner + ";");
+					codeWriter.outdent();
+					var documentation = e.documentation;
+					if (documentation) {
+						codeWriter.writeLine();
+						codeWriter.writeLine("COMMENT ON SCHEMA " + schemaName);
+						codeWriter.indent();
+						codeWriter.writeLine("IS " + codegen.asComment(documentation) + ";");
+						codeWriter.outdent();
+					}
+					dropWriter.writeLine("DROP SCHEMA " + schemaName + ";");
+				}
+			}
+		});
+		if (codeWriter.hasContent()) {
+			var file = path + "/schema_create.sql";
+			fs.writeFileSync(file, codeWriter.getData());
+			file = path + "/schema_drop.sql";
+			fs.writeFileSync(file, dropWriter.getData());
+		}
 
-  		return true;
-  	}
+		return true;
+	}
 
 	convertType(column, voFlag) {
 		let typeName = '???';
@@ -565,50 +565,50 @@ class DDLGenerator {
 
 		switch (column.type.toUpperCase()) {
 			case 'BIGINT':
-				typeName = voFlag && !(column.primaryKey || column.foreignKey) && 
+				typeName = voFlag && !(column.primaryKey || column.foreignKey) &&
 					columnName !== 'version' && columnName !== 'createuser' && columnName !== 'updateuser' ? 'string' : 'number';
 				break;
 			case 'DECIMAL':
-				typeName = voFlag ? 'string': 'number';
+				typeName = voFlag ? 'string' : 'number';
 				break;
 			case 'INTEGER':
-				typeName = voFlag ? 'string': 'number';
+				typeName = voFlag ? 'string' : 'number';
 				break;
 			case 'INT':
-				typeName = voFlag ? 'string': 'number';
+				typeName = voFlag ? 'string' : 'number';
 				break;
 			case 'INT2':
-				typeName = voFlag ? 'string': 'number';
+				typeName = voFlag ? 'string' : 'number';
 				break;
 			case 'INT4':
-				typeName = voFlag ? 'string': 'number';
+				typeName = voFlag ? 'string' : 'number';
 				break;
 			case 'DOUBLE':
-				typeName = voFlag ? 'string': 'number';
+				typeName = voFlag ? 'string' : 'number';
 				break;
 			case 'FLOAT4':
-				typeName = voFlag ? 'string': 'number';
+				typeName = voFlag ? 'string' : 'number';
 				break;
 			case 'FLOAT8':
-				typeName = voFlag ? 'string': 'number';
+				typeName = voFlag ? 'string' : 'number';
 				break;
 			case 'NUMERIC':
-				typeName = voFlag ? 'string': 'number';
+				typeName = voFlag ? 'string' : 'number';
 				break;
 			case 'REAL':
-				typeName = voFlag ? 'string': 'number';
+				typeName = voFlag ? 'string' : 'number';
 				break;
 			case 'SMALLINT':
-				typeName = voFlag ? 'string': 'number';
+				typeName = voFlag ? 'string' : 'number';
 				break;
 			case 'SMALLSERIAL':
-				typeName = voFlag ? 'string': 'number';
+				typeName = voFlag ? 'string' : 'number';
 				break;
 			case 'SERIAL':
-				typeName = voFlag ? 'string': 'number';
+				typeName = voFlag ? 'string' : 'number';
 				break;
 			case 'BIGSERIAL':
-				typeName = voFlag ? 'string': 'number';
+				typeName = voFlag ? 'string' : 'number';
 				break;
 			case 'BOOLEAN':
 				typeName = 'boolean';
@@ -629,7 +629,7 @@ class DDLGenerator {
 				typeName = 'string';
 				break;
 			case 'DATE':
-				typeName = voFlag ? 'string': 'Date';
+				typeName = voFlag ? 'string' : 'Date';
 				break;
 			case 'TIMESTAMP':
 				typeName = voFlag ? 'string' : 'Date';
@@ -644,7 +644,7 @@ class DDLGenerator {
 
 		switch (column.type.toUpperCase()) {
 			case 'BIGINT':
-				emptyValue = voFlag && !(column.primaryKey || column.foreignKey) && 
+				emptyValue = voFlag && !(column.primaryKey || column.foreignKey) &&
 					columnName !== 'version' && columnName !== 'createuser' && columnName !== 'updateuser' ? "''" : '0';
 				break;
 			case 'DECIMAL':
@@ -727,7 +727,7 @@ class DDLGenerator {
 
 		switch (column.type.toUpperCase()) {
 			case 'BIGINT':
-				if (column.primaryKey || column.foreignKey || 
+				if (column.primaryKey || column.foreignKey ||
 					columnName === 'version' || columnName === 'createuser' || columnName === 'updateuser'
 				) {
 					// NOP
@@ -736,7 +736,7 @@ class DDLGenerator {
 					result.right = ')';
 				} else {
 					result.left = 'NumberUtils.parseNumber(';
-					result.right = ')';
+					result.right = column.nullable ? ')': ', 0)';
 				}
 				break;
 			case 'DECIMAL':
@@ -745,7 +745,7 @@ class DDLGenerator {
 					result.right = ')';
 				} else {
 					result.left = 'NumberUtils.parseNumber(';
-					result.right = ')';
+					result.right = column.nullable ? ')': ', 0)';
 				}
 				break;
 			case 'INTEGER':
@@ -754,7 +754,7 @@ class DDLGenerator {
 					result.right = ')';
 				} else {
 					result.left = 'NumberUtils.parseNumber(';
-					result.right = ')';
+					result.right = column.nullable ? ')': ', 0)';
 				}
 				break;
 			case 'INT':
@@ -763,7 +763,7 @@ class DDLGenerator {
 					result.right = ')';
 				} else {
 					result.left = 'NumberUtils.parseNumber(';
-					result.right = ')';
+					result.right = column.nullable ? ')': ', 0)';
 				}
 				break;
 			case 'INT2':
@@ -772,7 +772,7 @@ class DDLGenerator {
 					result.right = ')';
 				} else {
 					result.left = 'NumberUtils.parseNumber(';
-					result.right = ')';
+					result.right = column.nullable ? ')': ', 0)';
 				}
 				break;
 			case 'INT4':
@@ -781,7 +781,7 @@ class DDLGenerator {
 					result.right = ')';
 				} else {
 					result.left = 'NumberUtils.parseNumber(';
-					result.right = ')';
+					result.right = column.nullable ? ')': ', 0)';
 				}
 				break;
 			case 'DOUBLE':
@@ -790,7 +790,7 @@ class DDLGenerator {
 					result.right = ')';
 				} else {
 					result.left = 'NumberUtils.parseNumber(';
-					result.right = ')';
+					result.right = column.nullable ? ')': ', 0)';
 				}
 				break;
 			case 'FLOAT4':
@@ -799,7 +799,7 @@ class DDLGenerator {
 					result.right = ')';
 				} else {
 					result.left = 'NumberUtils.parseNumber(';
-					result.right = ')';
+					result.right = column.nullable ? ')': ', 0)';
 				}
 				break;
 			case 'FLOAT8':
@@ -808,7 +808,7 @@ class DDLGenerator {
 					result.right = ')';
 				} else {
 					result.left = 'NumberUtils.parseNumber(';
-					result.right = ')';
+					result.right = column.nullable ? ')': ', 0)';
 				}
 				break;
 			case 'NUMERIC':
@@ -817,7 +817,7 @@ class DDLGenerator {
 					result.right = ')';
 				} else {
 					result.left = 'NumberUtils.parseNumber(';
-					result.right = ')';
+					result.right = column.nullable ? ')': ', 0)';
 				}
 				break;
 			case 'REAL':
@@ -826,7 +826,7 @@ class DDLGenerator {
 					result.right = ')';
 				} else {
 					result.left = 'NumberUtils.parseNumber(';
-					result.right = ')';
+					result.right = column.nullable ? ')': ', 0)';
 				}
 				break;
 			case 'SMALLINT':
@@ -835,7 +835,7 @@ class DDLGenerator {
 					result.right = ')';
 				} else {
 					result.left = 'NumberUtils.parseNumber(';
-					result.right = ')';
+					result.right = column.nullable ? ')': ', 0)';
 				}
 				break;
 			case 'SMALLSERIAL':
@@ -844,7 +844,7 @@ class DDLGenerator {
 					result.right = ')';
 				} else {
 					result.left = 'NumberUtils.parseNumber(';
-					result.right = ')';
+					result.right = column.nullable ? ')': ', 0)';
 				}
 				break;
 			case 'SERIAL':
@@ -853,7 +853,7 @@ class DDLGenerator {
 					result.right = ')';
 				} else {
 					result.left = 'NumberUtils.parseNumber(';
-					result.right = ')';
+					result.right = column.nullable ? ')': ', 0)';
 				}
 				break;
 			case 'BIGSERIAL':
@@ -862,7 +862,7 @@ class DDLGenerator {
 					result.right = ')';
 				} else {
 					result.left = 'NumberUtils.parseNumber(';
-					result.right = ')';
+					result.right = column.nullable ? ')': ', 0)';
 				}
 				break;
 			case 'DATE':
@@ -1050,8 +1050,8 @@ class DDLGenerator {
 
 			var writer = new codegen.CodeWriter(self.getIndentString(options));
 
-			writer.writeLine(`import { ${diagram.name}VO } from '../vo/${diagram.name}'`);
-			writer.writeLine(`import { ${diagram.name} } from '../entity/${diagram.name}'`);
+			writer.writeLine(`import { ${diagram.name}VO } from '@/lib/common/vo/entity/${diagram.name}'`);
+			writer.writeLine(`import { ${diagram.name} } from '@/lib/server/entity/${diagram.name}'`);
 			writer.writeLine(`import { DateUtils } from '@/lib/common/utils/date_utils'`);
 			writer.writeLine(`import { NumberUtils } from '@/lib/common/utils/number_utils'`);
 			writer.writeLine(``);
@@ -1081,6 +1081,11 @@ class DDLGenerator {
 					continue;
 				}
 				if (!hasPrimaryKey && column.unique) {
+					continue;
+				}
+				if (column.name === 'createUser' || column.name === 'updateUser' ||
+					column.name === 'creation' || column.name === 'modification' ||
+					column.name === 'deleteFlag') {
 					continue;
 				}
 
@@ -1114,7 +1119,7 @@ class DDLGenerator {
 			var daoWriter = new codegen.CodeWriter(self.getIndentString(options));
 
 			// Header
-			daoWriter.writeLine(`import { ${diagram.name} } from '../entity/${diagram.name}';`);
+			daoWriter.writeLine(`import { ${diagram.name} } from '@/lib/server/entity/${diagram.name}';`);
 			daoWriter.writeLine(`import { ClientBase } from 'pg';`);
 			daoWriter.writeLine(`import SQL, { SQLStatement } from 'sql-template-strings';`);
 			daoWriter.writeLine(``);
@@ -1187,12 +1192,12 @@ class DDLGenerator {
 				if (hasPrimaryKey) {
 					for (let i = 0; i < pkColumns.length; i++) {
 						const columnName = pkColumns[i].name;
-						daoWriter.writeLine(`                ${diagram.name}.${columnName} = \${${columnName}}${i !== pkColumns.length - 1  ? ' AND' : ''}`);
+						daoWriter.writeLine(`                ${diagram.name}.${columnName} = \${${columnName}}${i !== pkColumns.length - 1 ? ' AND' : ''}`);
 					}
 				} else {
 					for (let i = 0; i < uniqueColumns.length; i++) {
 						const columnName = uniqueColumns[i].name;
-						daoWriter.writeLine(`                ${diagram.name}.${columnName} = \${${columnName}}${i !== uniqueColumns.length - 1  ? ' AND' : ''}`);
+						daoWriter.writeLine(`                ${diagram.name}.${columnName} = \${${columnName}}${i !== uniqueColumns.length - 1 ? ' AND' : ''}`);
 					}
 				}
 				daoWriter.writeLine(`        \`))`);
@@ -1236,7 +1241,7 @@ class DDLGenerator {
 				}
 
 				const seqName = tag.name.substring(tag.name.indexOf('#') + 1, tag.name.length);
-				daoWriter.writeLine(`    export async function getSequenceId(client: ClientBase) : Promise<number> {`);
+				daoWriter.writeLine(`    export async function getSequenceId(client: ClientBase): Promise<number> {`);
 				daoWriter.writeLine(`        const qres = await client.query(SQL\`SELECT NEXTVAL('${seqName}') AS "id"\`)`);
 				daoWriter.writeLine(`        return qres.rows[0].id`);
 				daoWriter.writeLine(`    }`);
@@ -1244,7 +1249,7 @@ class DDLGenerator {
 			}
 
 			// INSERT
-			daoWriter.writeLine(`    export async function insert(client: ClientBase, entity: ${diagram.name}.Type) : Promise<number> {`);
+			daoWriter.writeLine(`    export async function insert(client: ClientBase, entity: ${diagram.name}.Type): Promise<number> {`);
 			daoWriter.writeLine(`        const qres = await client.query(SQL\``);
 			daoWriter.writeLine(`            INSERT INTO ${diagram.name} (`);
 			for (let i = 0; i < diagram.columns.length; i++) {
@@ -1278,7 +1283,7 @@ class DDLGenerator {
 			daoWriter.writeLine(``);
 
 			// UPDATE
-			daoWriter.writeLine(`    export async function update(client: ClientBase, entity: ${diagram.name}.Type) : Promise<number> {`);
+			daoWriter.writeLine(`    export async function update(client: ClientBase, entity: ${diagram.name}.Type): Promise<number> {`);
 			daoWriter.writeLine(`        const qres = await client.query(SQL\``);
 			daoWriter.writeLine(`            UPDATE`);
 			daoWriter.writeLine(`                ${diagram.name}`);
@@ -1336,7 +1341,7 @@ class DDLGenerator {
 			daoWriter.writeLine(``);
 
 			// DELETE
-			daoWriter.writeLine(`    export async function del(client: ClientBase, entity: ${diagram.name}.Type) : Promise<number> {`);
+			daoWriter.writeLine(`    export async function del(client: ClientBase, entity: ${diagram.name}.Type): Promise<number> {`);
 			daoWriter.writeLine(`        const qres = await client.query(SQL\``);
 			daoWriter.writeLine(`            DELETE`);
 			daoWriter.writeLine(`            FROM`);
@@ -1378,86 +1383,86 @@ class DDLGenerator {
 		}
 	}
 
-  	generateTables (elem, path, options, schema, dataModelName) {
-      var self = this;
+	generateTables(elem, path, options, schema, dataModelName) {
+		var self = this;
 
-  		var tableCodeWriter = new codegen.CodeWriter(self.getIndentString(options));
-  		var tableDropWriter = new codegen.CodeWriter(self.getIndentString(options));
-  		var refs = [];
-  		var tableRefs = [];
-  		elem.ownedElements.forEach(function (diagram) {
-  			if (diagram instanceof type.ERDDiagram) {
-  				var codeWriter = new codegen.CodeWriter(self.getIndentString(options));
-  				var dropWriter = new codegen.CodeWriter(self.getIndentString(options));
+		var tableCodeWriter = new codegen.CodeWriter(self.getIndentString(options));
+		var tableDropWriter = new codegen.CodeWriter(self.getIndentString(options));
+		var refs = [];
+		var tableRefs = [];
+		elem.ownedElements.forEach(function (diagram) {
+			if (diagram instanceof type.ERDDiagram) {
+				var codeWriter = new codegen.CodeWriter(self.getIndentString(options));
+				var dropWriter = new codegen.CodeWriter(self.getIndentString(options));
 
-  				var prefix = codegen.stringTag("prefix", diagram);
-  				diagram.ownedElements.forEach(function (entity) {
-  					app.toast.info("Generate table DDL for " + entity.name);
-  					if (!self.generateTable(codeWriter, dropWriter, entity, options, schema, prefix, refs)) {
-  						return false;
-  					}
-  				});
-  				// add the references
-  				for (var i = 0, len = refs.length; i < len; i++) {
-  					codeWriter.writeLine(refs[i]);
-  				}
+				var prefix = codegen.stringTag("prefix", diagram);
+				diagram.ownedElements.forEach(function (entity) {
+					app.toast.info("Generate table DDL for " + entity.name);
+					if (!self.generateTable(codeWriter, dropWriter, entity, options, schema, prefix, refs)) {
+						return false;
+					}
+				});
+				// add the references
+				for (var i = 0, len = refs.length; i < len; i++) {
+					codeWriter.writeLine(refs[i]);
+				}
 
-  				if (codeWriter.hasContent()) {
-  					var diagName = codegen.replaceAll(diagram.name, ' ', '_').toLowerCase();
-  					var file = path + "/" + dataModelName + "_" + diagName + "_create.sql";
-  					fs.writeFileSync(file, codeWriter.getData());
-  					file = path + "/" + dataModelName + "_" +	diagName + "_drop.sql";
-  					fs.writeFileSync(file, dropWriter.getData());
-                }
-  			} else if (diagram instanceof type.ERDEntity) {
-  				// generate table
-  				app.toast.info("Generate table DDL for " + diagram.name);
-  				if (!self.generateTable(tableCodeWriter, tableDropWriter, diagram, options, schema, '', tableRefs)) {
-  					return false;
-  				}
-  			}
-  		});
+				if (codeWriter.hasContent()) {
+					var diagName = codegen.replaceAll(diagram.name, ' ', '_').toLowerCase();
+					var file = path + "/" + dataModelName + "_" + diagName + "_create.sql";
+					fs.writeFileSync(file, codeWriter.getData());
+					file = path + "/" + dataModelName + "_" + diagName + "_drop.sql";
+					fs.writeFileSync(file, dropWriter.getData());
+				}
+			} else if (diagram instanceof type.ERDEntity) {
+				// generate table
+				app.toast.info("Generate table DDL for " + diagram.name);
+				if (!self.generateTable(tableCodeWriter, tableDropWriter, diagram, options, schema, '', tableRefs)) {
+					return false;
+				}
+			}
+		});
 
-  		if (tableCodeWriter.hasContent()) {
-  			for (var i = 0, len = tableRefs.length; i < len; i++) {
-  				tableCodeWriter.writeLine(tableRefs[i]);
-  			}
-  			var file = path + "/" + dataModelName + "_table_create.sql";
-  			fs.writeFileSync(file, tableCodeWriter.getData());
-  			file = path + "/" + dataModelName + "_table_drop.sql";
-  			fs.writeFileSync(file, tableDropWriter.getData());
-          
-            // merge
-            let ddlFile = path + "/" + dataModelName + "_ddl.sql";
-            fs.writeFileSync(ddlFile, tableDropWriter.getData() + "\n\n" + tableCodeWriter.getData());
-        }
+		if (tableCodeWriter.hasContent()) {
+			for (var i = 0, len = tableRefs.length; i < len; i++) {
+				tableCodeWriter.writeLine(tableRefs[i]);
+			}
+			var file = path + "/" + dataModelName + "_table_create.sql";
+			fs.writeFileSync(file, tableCodeWriter.getData());
+			file = path + "/" + dataModelName + "_table_drop.sql";
+			fs.writeFileSync(file, tableDropWriter.getData());
 
-  		return true;
-  	}
+			// merge
+			let ddlFile = path + "/" + dataModelName + "_ddl.sql";
+			fs.writeFileSync(ddlFile, tableDropWriter.getData() + "\n\n" + tableCodeWriter.getData());
+		}
 
-    /**
-     * Generate codes from a given element
-     * @param {type.Model} elem
-     * @param {string} path
-     * @param {Object} options
-     * @return {$.Promise}
-     */
-    generate (elem, path, options) {
-        var self = this;
+		return true;
+	}
 
-      	try {
-      		if (self.generateDatabase(elem, path, options)) {
-      		    app.toast.info("Database creation files completed.");
-          }
+	/**
+	 * Generate codes from a given element
+	 * @param {type.Model} elem
+	 * @param {string} path
+	 * @param {Object} options
+	 * @return {$.Promise}
+	 */
+	generate(elem, path, options) {
+		var self = this;
 
-      		self.generateSchema(elem, path, options);
+		try {
+			if (self.generateDatabase(elem, path, options)) {
+				app.toast.info("Database creation files completed.");
+			}
 
-      		app.dialogs.showInfoDialog("Project DDL files generated in " + path);
-      	} catch (ex) {
-      		app.dialogs.showErrorDialog("Project generation failed: " + ex);
-      		console.log(ex);
-      	}
-    };
+			self.generateSchema(elem, path, options);
+
+			app.dialogs.showInfoDialog("Project DDL files generated in " + path);
+		} catch (ex) {
+			app.dialogs.showErrorDialog("Project generation failed: " + ex);
+			console.log(ex);
+		}
+	};
 }
 
 /**
@@ -1466,9 +1471,9 @@ class DDLGenerator {
  * @param {string} basePath
  * @param {Object} options
  */
-function generate (baseModel, basePath, options) {
-  var generator = new DDLGenerator(baseModel, basePath)
-  return generator.generate(baseModel, basePath, options)
+function generate(baseModel, basePath, options) {
+	var generator = new DDLGenerator(baseModel, basePath)
+	return generator.generate(baseModel, basePath, options)
 }
 
 exports.generate = generate
