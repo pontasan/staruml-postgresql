@@ -736,7 +736,7 @@ class DDLGenerator {
 					result.right = ')';
 				} else {
 					result.left = 'NumberUtils.parseNumber(';
-					result.right = column.nullable ? ')': ', 0)';
+					result.right = column.nullable ? ')' : ', 0)';
 				}
 				break;
 			case 'DECIMAL':
@@ -745,7 +745,7 @@ class DDLGenerator {
 					result.right = ')';
 				} else {
 					result.left = 'NumberUtils.parseNumber(';
-					result.right = column.nullable ? ')': ', 0)';
+					result.right = column.nullable ? ')' : ', 0)';
 				}
 				break;
 			case 'INTEGER':
@@ -754,7 +754,7 @@ class DDLGenerator {
 					result.right = ')';
 				} else {
 					result.left = 'NumberUtils.parseNumber(';
-					result.right = column.nullable ? ')': ', 0)';
+					result.right = column.nullable ? ')' : ', 0)';
 				}
 				break;
 			case 'INT':
@@ -763,7 +763,7 @@ class DDLGenerator {
 					result.right = ')';
 				} else {
 					result.left = 'NumberUtils.parseNumber(';
-					result.right = column.nullable ? ')': ', 0)';
+					result.right = column.nullable ? ')' : ', 0)';
 				}
 				break;
 			case 'INT2':
@@ -772,7 +772,7 @@ class DDLGenerator {
 					result.right = ')';
 				} else {
 					result.left = 'NumberUtils.parseNumber(';
-					result.right = column.nullable ? ')': ', 0)';
+					result.right = column.nullable ? ')' : ', 0)';
 				}
 				break;
 			case 'INT4':
@@ -781,7 +781,7 @@ class DDLGenerator {
 					result.right = ')';
 				} else {
 					result.left = 'NumberUtils.parseNumber(';
-					result.right = column.nullable ? ')': ', 0)';
+					result.right = column.nullable ? ')' : ', 0)';
 				}
 				break;
 			case 'DOUBLE':
@@ -790,7 +790,7 @@ class DDLGenerator {
 					result.right = ')';
 				} else {
 					result.left = 'NumberUtils.parseNumber(';
-					result.right = column.nullable ? ')': ', 0)';
+					result.right = column.nullable ? ')' : ', 0)';
 				}
 				break;
 			case 'FLOAT4':
@@ -799,7 +799,7 @@ class DDLGenerator {
 					result.right = ')';
 				} else {
 					result.left = 'NumberUtils.parseNumber(';
-					result.right = column.nullable ? ')': ', 0)';
+					result.right = column.nullable ? ')' : ', 0)';
 				}
 				break;
 			case 'FLOAT8':
@@ -808,7 +808,7 @@ class DDLGenerator {
 					result.right = ')';
 				} else {
 					result.left = 'NumberUtils.parseNumber(';
-					result.right = column.nullable ? ')': ', 0)';
+					result.right = column.nullable ? ')' : ', 0)';
 				}
 				break;
 			case 'NUMERIC':
@@ -817,7 +817,7 @@ class DDLGenerator {
 					result.right = ')';
 				} else {
 					result.left = 'NumberUtils.parseNumber(';
-					result.right = column.nullable ? ')': ', 0)';
+					result.right = column.nullable ? ')' : ', 0)';
 				}
 				break;
 			case 'REAL':
@@ -826,7 +826,7 @@ class DDLGenerator {
 					result.right = ')';
 				} else {
 					result.left = 'NumberUtils.parseNumber(';
-					result.right = column.nullable ? ')': ', 0)';
+					result.right = column.nullable ? ')' : ', 0)';
 				}
 				break;
 			case 'SMALLINT':
@@ -835,7 +835,7 @@ class DDLGenerator {
 					result.right = ')';
 				} else {
 					result.left = 'NumberUtils.parseNumber(';
-					result.right = column.nullable ? ')': ', 0)';
+					result.right = column.nullable ? ')' : ', 0)';
 				}
 				break;
 			case 'SMALLSERIAL':
@@ -844,7 +844,7 @@ class DDLGenerator {
 					result.right = ')';
 				} else {
 					result.left = 'NumberUtils.parseNumber(';
-					result.right = column.nullable ? ')': ', 0)';
+					result.right = column.nullable ? ')' : ', 0)';
 				}
 				break;
 			case 'SERIAL':
@@ -853,7 +853,7 @@ class DDLGenerator {
 					result.right = ')';
 				} else {
 					result.left = 'NumberUtils.parseNumber(';
-					result.right = column.nullable ? ')': ', 0)';
+					result.right = column.nullable ? ')' : ', 0)';
 				}
 				break;
 			case 'BIGSERIAL':
@@ -862,7 +862,7 @@ class DDLGenerator {
 					result.right = ')';
 				} else {
 					result.left = 'NumberUtils.parseNumber(';
-					result.right = column.nullable ? ')': ', 0)';
+					result.right = column.nullable ? ')' : ', 0)';
 				}
 				break;
 			case 'DATE':
@@ -887,6 +887,14 @@ class DDLGenerator {
 		return result;
 	}
 
+	toCamelCase(src) {
+		if (!src || src.length === 0) {
+			return '';
+		}
+
+		return src.charAt(0).toUpperCase() + src.slice(1);
+	}
+
 	generateEntity(elem, path, options, schema, dataModelName) {
 		var self = this;
 		for (const diagram of elem.ownedElements) {
@@ -894,9 +902,36 @@ class DDLGenerator {
 				continue;
 			}
 
+			const refList = [];
+			for (const tag of diagram.tags) {
+				if (tag.name.indexOf('ref#') === -1) {
+					continue;
+				}
+
+				const entityName = tag.name.replaceAll('ref#', '').replaceAll('[', '').replaceAll(']', '');
+				const isArray = tag.name.indexOf('[') !== -1;
+
+				refList.push({
+					entityName,
+					isArray,
+					field: tag.value
+				})
+			}
+
 			// var prefix = codegen.stringTag("prefix", diagram);
 
 			var entityWriter = new codegen.CodeWriter(self.getIndentString(options));
+
+			if (refList.length !== 0) {
+				for (const ref of refList) {
+					if (ref.entityName.toLowerCase() === diagram.name.toLowerCase()) {
+						continue;
+					}
+
+					entityWriter.writeLine(`import { ${ref.entityName} } from '@/lib/server/entity/${ref.entityName}';`);
+				}
+				entityWriter.writeLine(``);
+			}
 
 			entityWriter.writeLine(`export namespace ${diagram.name} {`);
 			entityWriter.writeLine(``);
@@ -925,8 +960,21 @@ class DDLGenerator {
 						break;
 				}
 
-				entityWriter.writeLine(`        ${column.name}${isOptionalField ? '?' : ''}: ${typeName}${i !== diagram.columns.length - 1 ? ',' : ''}`);
+				entityWriter.writeLine(`        ${column.name}${isOptionalField ? '?' : ''}: ${typeName}${i !== diagram.columns.length - 1 || diagram.columns.length !== 0 ? ',' : ''}`);
 			}
+
+			if (refList.length !== 0) {
+				entityWriter.writeLine(``);
+				for (let i = 0; i < refList.length; i++) {
+					const ref = refList[i];
+					entityWriter.writeLine(`        ${ref.field}: ${ref.entityName}.Type${ref.isArray ? '[]' : ''}${i !== refList.length - 1 || ref.isArray ? ',' : ''}`);
+
+					if (ref.isArray) {
+						entityWriter.writeLine(`        remove${self.toCamelCase(ref.field)}: ${ref.entityName}.Type[]${i !== refList.length - 1 ? ',' : ''}`);
+					}
+				}
+			}
+
 			entityWriter.writeLine(`    }`);
 			entityWriter.writeLine(``);
 
@@ -950,8 +998,21 @@ class DDLGenerator {
 					continue;
 				}
 
-				entityWriter.writeLine(`            ${column.name}: ${emptyValue}${i !== diagram.columns.length - 1 ? ',' : ''}`);
+				entityWriter.writeLine(`            ${column.name}: ${emptyValue}${i !== diagram.columns.length - 1 || refList.length !== 0 ? ',' : ''}`);
 			}
+
+			if (refList.length !== 0) {
+				entityWriter.writeLine(``);
+				for (let i = 0; i < refList.length; i++) {
+					const ref = refList[i];
+					entityWriter.writeLine(`            ${ref.field}: ${ref.isArray ? '[]' : ref.entityName + '.create()'}${i !== refList.length - 1 || ref.isArray ? ',' : ''}`);
+
+					if (ref.isArray) {
+						entityWriter.writeLine(`            remove${self.toCamelCase(ref.field)}: []${i !== refList.length - 1 ? ',' : ''}`);
+					}
+				}
+			}
+
 			entityWriter.writeLine(`        }`);
 			entityWriter.writeLine(`    }`);
 			entityWriter.writeLine(``);
@@ -976,9 +1037,36 @@ class DDLGenerator {
 				continue;
 			}
 
+			const refList = [];
+			for (const tag of diagram.tags) {
+				if (tag.name.indexOf('ref#') === -1) {
+					continue;
+				}
+
+				const entityName = tag.name.replaceAll('ref#', '').replaceAll('[', '').replaceAll(']', '');
+				const isArray = tag.name.indexOf('[') !== -1;
+
+				refList.push({
+					entityName: `${entityName}`,
+					isArray,
+					field: tag.value
+				})
+			}
+
 			// var prefix = codegen.stringTag("prefix", diagram);
 
 			var entityWriter = new codegen.CodeWriter(self.getIndentString(options));
+
+			if (refList.length !== 0) {
+				for (const ref of refList) {
+					if (ref.entityName.toLowerCase() === diagram.name.toLowerCase()) {
+						continue;
+					}
+
+					entityWriter.writeLine(`import { ${ref.entityName}VO } from '@/lib/common/vo/entity/${ref.entityName}';`);
+				}
+				entityWriter.writeLine(``);
+			}
 
 			entityWriter.writeLine(`export namespace ${diagram.name}VO {`);
 			entityWriter.writeLine(``);
@@ -998,8 +1086,21 @@ class DDLGenerator {
 				let isOptionalField = column.primaryKey || (!hasPrimaryKey && column.unique) || column.foreignKey || column.nullable
 				let typeName = self.convertType(column, true);
 
-				entityWriter.writeLine(`        ${column.name}${isOptionalField ? '?' : ''}: ${typeName}${i !== diagram.columns.length - 1 ? ',' : ''}`);
+				entityWriter.writeLine(`        ${column.name}${isOptionalField ? '?' : ''}: ${typeName}${i !== diagram.columns.length - 1 || refList.length !== 0 ? ',' : ''}`);
 			}
+
+			if (refList.length !== 0) {
+				entityWriter.writeLine(``);
+				for (let i = 0; i < refList.length; i++) {
+					const ref = refList[i];
+					entityWriter.writeLine(`        ${ref.field}: ${ref.entityName}VO.Type${ref.isArray ? '[]' : ''}${i !== refList.length - 1 || ref.isArray ? ',' : ''}`);
+
+					if (ref.isArray) {
+						entityWriter.writeLine(`        remove${self.toCamelCase(ref.field)}: ${ref.entityName}VO.Type[]${i !== refList.length - 1 ? ',' : ''}`);
+					}
+				}
+			}
+
 			entityWriter.writeLine(`    }`);
 			entityWriter.writeLine(``);
 
@@ -1014,8 +1115,21 @@ class DDLGenerator {
 					continue;
 				}
 
-				entityWriter.writeLine(`            ${column.name}: ${emptyValue}${i !== diagram.columns.length - 1 ? ',' : ''}`);
+				entityWriter.writeLine(`            ${column.name}: ${emptyValue}${i !== diagram.columns.length - 1 || refList.length !== 0 ? ',' : ''}`);
 			}
+
+			if (refList.length !== 0) {
+				entityWriter.writeLine(``);
+				for (let i = 0; i < refList.length; i++) {
+					const ref = refList[i];
+					entityWriter.writeLine(`            ${ref.field}: ${ref.isArray ? '[]' : ref.entityName + 'VO.create()'}${i !== refList.length - 1 || ref.isArray ? ',' : ''}`);
+
+					if (ref.isArray) {
+						entityWriter.writeLine(`            remove${self.toCamelCase(ref.field)}: []${i !== refList.length - 1 ? ',' : ''}`);
+					}
+				}
+			}
+
 			entityWriter.writeLine(`        }`);
 			entityWriter.writeLine(`    }`);
 			entityWriter.writeLine(``);
@@ -1035,6 +1149,24 @@ class DDLGenerator {
 
 	generateConverter(elem, path, options, schema, dataModelName) {
 		var self = this;
+
+		const pkMapByEntityName = new Map();
+		for (const diagram of elem.ownedElements) {
+			if (!(diagram instanceof type.ERDEntity)) {
+				continue;
+			}
+
+			let primaryKeyFields = [];
+			for (let i = 0; i < diagram.columns.length; i++) {
+				const column = diagram.columns[i];
+				if (column.primaryKey) {
+					primaryKeyFields.push(column.name);
+				}
+			}
+
+			pkMapByEntityName.set(diagram.name.toLowerCase(), primaryKeyFields);
+		}
+
 		for (const diagram of elem.ownedElements) {
 			if (!(diagram instanceof type.ERDEntity)) {
 				continue;
@@ -1048,10 +1180,39 @@ class DDLGenerator {
 				}
 			}
 
+			const refList = [];
+			for (const tag of diagram.tags) {
+				if (tag.name.indexOf('ref#') === -1) {
+					continue;
+				}
+
+				const entityName = tag.name.replaceAll('ref#', '').replaceAll('[', '').replaceAll(']', '');
+				const isArray = tag.name.indexOf('[') !== -1;
+
+				refList.push({
+					entityName: `${entityName}`,
+					isArray,
+					field: tag.value
+				})
+			}
+
 			var writer = new codegen.CodeWriter(self.getIndentString(options));
 
 			writer.writeLine(`import { ${diagram.name}VO } from '@/lib/common/vo/entity/${diagram.name}'`);
 			writer.writeLine(`import { ${diagram.name} } from '@/lib/server/entity/${diagram.name}'`);
+			if (refList.length !== 0) {
+				writer.writeLine(`import { CollectionUtils } from '@/lib/common/utils/collection_utils';`)
+
+				for (const ref of refList) {
+					if (ref.entityName.toLowerCase() === diagram.name.toLowerCase()) {
+						continue;
+					}
+
+					writer.writeLine(`import { ${ref.entityName}VO } from '@/lib/common/vo/entity/${ref.entityName}'`);
+					writer.writeLine(`import { ${ref.entityName} } from '@/lib/server/entity/${ref.entityName}'`);
+					writer.writeLine(`import { ${ref.entityName}Converter } from '@/lib/server/converter/${ref.entityName}'`);
+				}
+			}
 			writer.writeLine(`import { DateUtils } from '@/lib/common/utils/date_utils'`);
 			writer.writeLine(`import { NumberUtils } from '@/lib/common/utils/number_utils'`);
 			writer.writeLine(``);
@@ -1066,8 +1227,23 @@ class DDLGenerator {
 				const column = diagram.columns[i];
 				const convToVO = self.getConvertCode(column, true);
 
-				writer.writeLine(`            ${column.name}: ${convToVO.left}src.${column.name}${convToVO.right}${i !== diagram.columns.length - 1 ? ',' : ''}`);
+				writer.writeLine(`            ${column.name}: ${convToVO.left}src.${column.name}${convToVO.right}${i !== diagram.columns.length - 1 || refList.length !== 0 ? ',' : ''}`);
 			}
+
+			if (refList.length !== 0) {
+				writer.writeLine(``);
+
+				for (let i = 0; i < refList.length; i++) {
+					const ref = refList[i];
+					if (ref.isArray) {
+						writer.writeLine(`            ${ref.field}: src.${ref.field}.map((item) => ${ref.entityName}Converter.toVO(item)),`);
+						writer.writeLine(`            remove${self.toCamelCase(ref.field)}: []${i !== refList.length - 1 ? ',' : ''}`);
+					} else {
+						writer.writeLine(`            ${ref.field}: ${ref.entityName}Converter.toVO(src.${ref.field})${i !== refList.length - 1 ? ',' : ''}`);
+					}
+				}
+			}
+
 			writer.writeLine(`        }`);
 			writer.writeLine(`    }`);
 			writer.writeLine(``);
@@ -1077,20 +1253,84 @@ class DDLGenerator {
 				const column = diagram.columns[i];
 				const convToVO = self.getConvertCode(column, false);
 
-				if (column.primaryKey) {
-					continue;
-				}
-				if (!hasPrimaryKey && column.unique) {
-					continue;
-				}
-				if (column.name === 'createUser' || column.name === 'updateUser' ||
-					column.name === 'creation' || column.name === 'modification' ||
-					column.name === 'deleteFlag') {
-					continue;
-				}
+				// if (column.primaryKey) {
+				// 	continue;
+				// }
+				// if (!hasPrimaryKey && column.unique) {
+				// 	continue;
+				// }
+				// if (column.name === 'createUser' || column.name === 'updateUser' ||
+				// 	column.name === 'creation' || column.name === 'modification' ||
+				// 	column.name === 'deleteFlag') {
+				// 	continue;
+				// }
 
 				writer.writeLine(`        dest.${column.name} = ${convToVO.left}src.${column.name}${convToVO.right}`);
 			}
+
+			if (refList.length !== 0) {
+				writer.writeLine(``);
+
+				for (let i = 0; i < refList.length; i++) {
+					const ref = refList[i];
+					if (ref.isArray) {
+						let srcKey = '???';
+						let destKey = '???';
+						let codeForOnRemove = '???';
+
+						if (pkMapByEntityName.has(diagram.name.toLowerCase())) {
+							const pkFields = pkMapByEntityName.get(diagram.name.toLowerCase());
+
+							if (pkFields.length === 1) {
+								srcKey = `srcRow.${pkFields[0]}`;
+								destKey = `destRow.${pkFields[0]}`;
+								codeForOnRemove = `item.${pkFields[0]} !== destRow.${pkFields[0]})`;
+							} else if (pkFields.length > 1) {
+								srcKey = '';
+								destKey = '';
+								codeForOnRemove = '';
+
+								for (let k = 0; k < pkFields.length; k++) {
+									srcKey = k === 0 ? `srcRow.${pkFields[k]}` : `${srcKey}srcRow.${pkFields[k]}`;
+									destKey = k === 0 ? `destRow.${pkFields[k]}` : `${destKey}destRow.${pkFields[k]}`;
+									codeForOnRemove = k === 0 ? `item.${pkFields[k]} !== destRow.${pkFields[k]}` : `${codeForOnRemove}item.${pkFields[k]} !== destRow.${pkFields[k]}`;
+									if (k !== pkFields.length - 1) {
+										srcKey += '_';
+										destKey += '_';
+										codeForOnRemove += ' && ';
+									}
+									codeForOnRemove += ')';
+								}
+							}
+						}
+
+						writer.writeLine(`        dest.remove${self.toCamelCase(ref.field)} = []`)
+						writer.writeLine(`        CollectionUtils.applyArray({`);
+						writer.writeLine(`        	srcList: src.${ref.field},`);
+						writer.writeLine(`        	destList: dest.${ref.field},`);
+						writer.writeLine(`        	srcKey: (srcRow) => ${srcKey},`);
+						writer.writeLine(`        	destKey: (destRow) => ${destKey},`);
+						writer.writeLine(`        	onAdd: (srcRow) => {`);
+						writer.writeLine(`        		const newRow = { ...${ref.entityName}.create() }`);
+						writer.writeLine(`        		${ref.entityName}Converter.apply(srcRow, newRow)`);
+						writer.writeLine(`        		dest.${ref.field}.push(newRow)`);
+						writer.writeLine(`        	},`);
+						writer.writeLine(`        	onApply: (srcRow, destRow) => {`);
+						writer.writeLine(`        		${ref.entityName}Converter.apply(srcRow, destRow)`);
+						writer.writeLine(`        	},`);
+						writer.writeLine(`        	onRemove: (destRow) => {`);
+						writer.writeLine(`        		dest.${ref.field} = dest.${ref.field}.filter((item) => ${codeForOnRemove}`);
+						writer.writeLine(`        		dest.remove${self.toCamelCase(ref.field)}.push(destRow)`);
+						writer.writeLine(`        	}`);
+						writer.writeLine(`        })`);
+						writer.writeLine(``);
+					} else {
+						writer.writeLine(`        ${ref.entityName}Converter.apply(src.${ref.field}, dest.${ref.field})`);
+						writer.writeLine(``);
+					}
+				}
+			}
+
 			writer.writeLine(`    }`);
 			writer.writeLine(``);
 
@@ -1130,6 +1370,7 @@ class DDLGenerator {
 			let hasPrimaryKey = false;
 			let hasUniqueKey = false;
 			let hasVersion = false;
+			let hasDeleteFlag = false;
 			const pkColumns = [];
 			const uniqueColumns = [];
 			for (let i = 0; i < diagram.columns.length; i++) {
@@ -1148,6 +1389,10 @@ class DDLGenerator {
 				if (column.unique) {
 					hasUniqueKey = true;
 					uniqueColumns.push(column);
+				}
+
+				if (column.name.toLowerCase() === 'deleteflag') {
+					hasDeleteFlag = true;
 				}
 			}
 
@@ -1192,14 +1437,19 @@ class DDLGenerator {
 				if (hasPrimaryKey) {
 					for (let i = 0; i < pkColumns.length; i++) {
 						const columnName = pkColumns[i].name;
-						daoWriter.writeLine(`                ${diagram.name}.${columnName} = \${${columnName}}${i !== pkColumns.length - 1 ? ' AND' : ''}`);
+						daoWriter.writeLine(`                ${diagram.name}.${columnName} = \${${columnName}}${i !== pkColumns.length - 1 || hasDeleteFlag ? ' AND' : ''}`);
 					}
 				} else {
 					for (let i = 0; i < uniqueColumns.length; i++) {
 						const columnName = uniqueColumns[i].name;
-						daoWriter.writeLine(`                ${diagram.name}.${columnName} = \${${columnName}}${i !== uniqueColumns.length - 1 ? ' AND' : ''}`);
+						daoWriter.writeLine(`                ${diagram.name}.${columnName} = \${${columnName}}${i !== uniqueColumns.length - 1 || hasDeleteFlag ? ' AND' : ''}`);
 					}
 				}
+
+				if (hasDeleteFlag) {
+					daoWriter.writeLine(`                ${diagram.name}.deleteFlag = FALSE`);
+				}
+
 				daoWriter.writeLine(`        \`))`);
 				daoWriter.writeLine(`        return qres.rowCount !== 0 ? qres.rows[0] : undefined`);
 				daoWriter.writeLine(`    }`);
@@ -1209,6 +1459,11 @@ class DDLGenerator {
 			// SELECT: listAll
 			daoWriter.writeLine(`    export async function listAll(client: ClientBase): Promise<${diagram.name}.Type[]> {`);
 			daoWriter.writeLine(`        const qres = await client.query(baseQuery().append(SQL\``);
+
+			if (hasDeleteFlag) {
+				daoWriter.writeLine(`            WHERE`);
+				daoWriter.writeLine(`                ${diagram.name}.deleteFlag = FALSE`);
+			}
 
 			if (hasPrimaryKey) {
 				if (pkColumns.length > 0) {
